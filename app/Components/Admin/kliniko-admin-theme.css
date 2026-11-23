@@ -1,0 +1,160 @@
+/* ==========================================
+   KLINIKO ADMIN THEME
+   LIGHT MODE
+========================================== */
+
+.kliniko-admin {
+  --background: #f1f8f5;
+  --foreground: #101e50;
+
+  --surface: #ffffff;
+  --surface-soft: #f5faf9;
+
+  --border: #d8e9eb;
+  --muted: #6c788b;
+
+  --accent: #159bb1;
+  --accent-soft: #e4f5f7;
+
+  --medical-navy: #101e50;
+  --medical-teal: #159bb1;
+  --medical-purple: #6255ec;
+
+  color-scheme: light;
+
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ==========================================
+   DARK MODE
+========================================== */
+
+.dark .kliniko-admin {
+  --background: #091633;
+  --foreground: #f5f9ff;
+
+  --surface: #101e50;
+  --surface-soft: #152954;
+
+  --border: #30436c;
+  --muted: #bbcbe0;
+
+  --accent: #35bdd0;
+  --accent-soft: #16425a;
+
+  --medical-navy: #101e50;
+  --medical-teal: #35bdd0;
+  --medical-purple: #8175f4;
+
+  color-scheme: dark;
+}
+
+/* ==========================================
+   ADMIN CARDS
+========================================== */
+
+.kliniko-admin .kl-admin-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+
+  border-radius: 22px;
+
+  box-shadow: 0 8px 28px rgba(16, 30, 80, 0.035);
+
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.kliniko-admin .kl-admin-card:hover {
+  border-color: var(--accent);
+
+  box-shadow: 0 12px 35px rgba(16, 30, 80, 0.07);
+}
+
+/* ==========================================
+   FORM INPUTS
+========================================== */
+
+.kliniko-admin .kl-admin-input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+
+  padding: 10px 13px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: var(--surface-soft);
+  color: var(--foreground);
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.kliniko-admin .kl-admin-input::placeholder {
+  color: var(--muted);
+}
+
+.kliniko-admin .kl-admin-input:focus-visible {
+  border-color: var(--accent);
+
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 17%, transparent);
+}
+
+.kliniko-admin .kl-admin-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ==========================================
+   ADMIN LINKS
+========================================== */
+
+.kliniko-admin .rt-content a,
+.kliniko-admin .rt-render a,
+.kliniko-admin .rt-preview a {
+  color: var(--accent);
+}
+
+/* ==========================================
+   SCROLLBARS
+========================================== */
+
+.kliniko-admin ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.kliniko-admin ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kliniko-admin ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.kliniko-admin ::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* ==========================================
+   ACCESSIBILITY
+========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .kliniko-admin *,
+  .kliniko-admin *::before,
+  .kliniko-admin *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
