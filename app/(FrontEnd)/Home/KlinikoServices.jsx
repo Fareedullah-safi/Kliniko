@@ -97,7 +97,13 @@ const CROSSES = [
 
 function MedicalCross({ size, filled }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M38 0H62V38H100V62H62V100H38V62H0V38H38V0Z"
         fill={filled ? "#D6F6F2" : "none"}
@@ -110,9 +116,34 @@ function MedicalCross({ size, filled }) {
 
 function SectionIcon() {
   return (
-    <svg width="23" height="23" viewBox="0 0 32 32" fill="none" aria-hidden="true" className="text-[#139DB3]">
-      <rect x="12" y="1" width="8" height="30" rx="4" transform="rotate(45 16 16)" stroke="currentColor" strokeWidth="2.5" />
-      <rect x="12" y="1" width="8" height="30" rx="4" transform="rotate(-45 16 16)" stroke="currentColor" strokeWidth="2.5" />
+    <svg
+      width="23"
+      height="23"
+      viewBox="0 0 32 32"
+      fill="none"
+      aria-hidden="true"
+      className="text-[#139DB3]"
+    >
+      <rect
+        x="12"
+        y="1"
+        width="8"
+        height="30"
+        rx="4"
+        transform="rotate(45 16 16)"
+        stroke="currentColor"
+        strokeWidth="2.5"
+      />
+      <rect
+        x="12"
+        y="1"
+        width="8"
+        height="30"
+        rx="4"
+        transform="rotate(-45 16 16)"
+        stroke="currentColor"
+        strokeWidth="2.5"
+      />
       <circle cx="16" cy="16" r="2" fill="currentColor" />
     </svg>
   );
@@ -120,7 +151,10 @@ function SectionIcon() {
 
 const CARD_VARIANTS = {
   idle: { backgroundColor: "#FFFFFF", boxShadow: "0 0 0 rgba(12,30,80,0)" },
-  hover: { backgroundColor: "#101E50", boxShadow: "0 18px 45px rgba(12,30,80,.15)" },
+  hover: {
+    backgroundColor: "#101E50",
+    boxShadow: "0 18px 45px rgba(12,30,80,.15)",
+  },
 };
 
 function ServiceCard({ service, cardWidth }) {
@@ -152,7 +186,10 @@ function ServiceCard({ service, cardWidth }) {
             className="absolute inset-0 bg-gradient-to-r from-[#6357ED] via-[#3385D9] to-[#139DB3]"
           />
           <motion.div
-            variants={{ idle: { scale: 1, rotate: 0 }, hover: { scale: 1.1, rotate: 5 } }}
+            variants={{
+              idle: { scale: 1, rotate: 0 },
+              hover: { scale: 1.1, rotate: 5 },
+            }}
             transition={{ type: "spring", stiffness: 260, damping: 18 }}
             className="relative z-10"
           >
@@ -161,7 +198,7 @@ function ServiceCard({ service, cardWidth }) {
         </div>
         <motion.span
           variants={{ idle: { color: "#D0EBF0" }, hover: { color: "#174477" } }}
-          className="text-[38px] font-bold leading-none sm:text-[42px]"
+          className="text-[38px] leading-none font-bold sm:text-[42px]"
         >
           {service.number}
         </motion.span>
@@ -172,7 +209,7 @@ function ServiceCard({ service, cardWidth }) {
         <motion.h3
           variants={{ idle: { color: "#101D4E" }, hover: { color: "#FFFFFF" } }}
           transition={{ duration: 0.35 }}
-          className="text-[21px] font-semibold leading-[1.45] sm:text-[23px] xl:text-[25px]"
+          className="text-[21px] leading-[1.45] font-semibold sm:text-[23px] xl:text-[25px]"
         >
           <motion.span
             variants={{
@@ -203,7 +240,10 @@ function ServiceCard({ service, cardWidth }) {
       </motion.p>
 
       <motion.div
-        variants={{ idle: { borderColor: "#E8EDF0" }, hover: { borderColor: "rgba(255,255,255,.2)" } }}
+        variants={{
+          idle: { borderColor: "#E8EDF0" },
+          hover: { borderColor: "rgba(255,255,255,.2)" },
+        }}
         className="mt-5 border-t pt-6"
       >
         <Link
@@ -248,7 +288,8 @@ export default function KlinikoServices() {
       const width = viewport.getBoundingClientRect().width;
       if (width <= 0) return;
 
-      const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+      const columns =
+        window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
       const nextWidth = (width - CARD_GAP * (columns - 1)) / columns;
       const nextStep = nextWidth + CARD_GAP;
       if (Math.abs(stepRef.current - nextStep) < 0.2) return;
@@ -278,7 +319,9 @@ export default function KlinikoServices() {
     const viewport = viewportRef.current;
     if (!viewport) return;
     const observer = new IntersectionObserver(
-      ([entry]) => { visibleRef.current = entry.isIntersecting; },
+      ([entry]) => {
+        visibleRef.current = entry.isIntersecting;
+      },
       { threshold: 0.1 },
     );
     observer.observe(viewport);
@@ -321,7 +364,8 @@ export default function KlinikoServices() {
         focusRef.current ||
         touchingRef.current ||
         movingRef.current
-      ) return;
+      )
+        return;
 
       move(1); // Visually moves all cards LEFT, one position at a time.
     }, SLIDE_INTERVAL);
@@ -355,19 +399,29 @@ export default function KlinikoServices() {
     }, 600);
   };
 
-  useEffect(() => () => {
-    animationRef.current?.stop();
-    if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      animationRef.current?.stop();
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+    },
+    [],
+  );
 
   return (
     <section
       aria-labelledby="kliniko-services-title"
       className="relative isolate overflow-hidden bg-[#F1F8F5] py-20 sm:py-24 lg:py-[100px]"
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      >
         {CROSSES.map((cross, index) => (
-          <div key={index} className="absolute opacity-80" style={{ top: cross.top, left: cross.left }}>
+          <div
+            key={index}
+            className="absolute opacity-80"
+            style={{ top: cross.top, left: cross.left }}
+          >
             <MedicalCross size={cross.size} filled={cross.filled} />
           </div>
         ))}
@@ -377,12 +431,14 @@ export default function KlinikoServices() {
         <div className="mx-auto max-w-[850px] text-center">
           <div className="flex items-center justify-center gap-2">
             <SectionIcon />
-            <span className="text-[18px] font-semibold text-[#101D4E]">Service</span>
+            <span className="text-[18px] font-semibold text-[#101D4E]">
+              Service
+            </span>
             <SectionIcon />
           </div>
           <h2
             id="kliniko-services-title"
-            className="mx-auto mt-5 max-w-[750px] text-[clamp(2rem,3.3vw,3.25rem)] font-bold leading-[1.2] tracking-[-0.025em] text-[#101D4E]"
+            className="mx-auto mt-5 max-w-[750px] text-[clamp(2rem,3.3vw,3.25rem)] leading-[1.2] font-bold tracking-[-0.025em] text-[#101D4E]"
           >
             Delivering Trusted Medical
             <span className="block">Care With Precision</span>
@@ -398,7 +454,9 @@ export default function KlinikoServices() {
           aria-label="Medical services"
           aria-live="off"
           className="mt-12 min-w-0 overflow-hidden rounded-[20px] lg:mt-14"
-          onFocusCapture={() => { focusRef.current = true; }}
+          onFocusCapture={() => {
+            focusRef.current = true;
+          }}
           onBlurCapture={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
               focusRef.current = false;
@@ -436,11 +494,17 @@ export default function KlinikoServices() {
             <button
               type="button"
               onClick={() => setPlaying((current) => !current)}
-              aria-label={playing ? "Pause automatic sliding" : "Resume automatic sliding"}
+              aria-label={
+                playing ? "Pause automatic sliding" : "Resume automatic sliding"
+              }
               aria-pressed={!playing}
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[#159BB1] text-white transition-colors duration-300 hover:bg-[#101E50] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
             >
-              {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
+              {playing ? (
+                <Pause size={19} fill="currentColor" />
+              ) : (
+                <Play size={19} fill="currentColor" />
+              )}
             </button>
             <button
               type="button"
