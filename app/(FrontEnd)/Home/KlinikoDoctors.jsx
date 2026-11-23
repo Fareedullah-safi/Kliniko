@@ -14,25 +14,29 @@ const DOCTORS = [
     id: "dr-arman-hossain",
     name: "Dr. Arman Hossain",
     specialty: "Internal Medicine",
-    image: "/images/doctors/doctor-1.webp",
+    image:
+      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img1.jpg",
   },
   {
     id: "dr-sofia-rahman",
     name: "Dr. Sofia Rahman",
     specialty: "Specialist – Cardiology",
-    image: "/images/doctors/doctor-2.webp",
+    image:
+      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img2.jpg",
   },
   {
     id: "dr-neil-chowdhury",
     name: "Dr. Neil Chowdhury",
     specialty: "Orthopedic & Trauma",
-    image: "/images/doctors/doctor-3.webp",
+    image:
+      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img3.jpg",
   },
   {
     id: "dr-farhana-zayed",
     name: "Dr. Farhana Zayed",
     specialty: "Neurology Specialist",
-    image: "/images/doctors/doctor-4.webp",
+    image:
+      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img4.jpg",
   },
 ];
 
