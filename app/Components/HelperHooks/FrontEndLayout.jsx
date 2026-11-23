@@ -3,9 +3,8 @@
 import { usePathname } from "next/navigation";
 
 // Absolute imports using '@' alias (avoids relative path issues)
-import Footer from "@/app/Components/Footer";
+import Footer from "@/app/Components/KlinikoFooter";
 import { NavBar } from "../NavBar";
-import SectionTwelve from "../SectionTwelve";
 
 export default function FrontEndLayout({ children }) {
   const pathname = usePathname();
@@ -21,7 +20,6 @@ export default function FrontEndLayout({ children }) {
     <>
       <NavBar />
       <main>{children}</main>
-      <SectionTwelve />
       <Footer />
     </>
   );

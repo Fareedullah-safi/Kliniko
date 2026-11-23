@@ -3,9 +3,11 @@
 import KlinikoHero from "@/app/(FrontEnd)/Home/KlinikoHero";
 import KlinikoAbout from "./Home/KlinikoAbout";
 import KlinikoAppointment from "./Home/KlinikoAppointment";
+import KlinikoBlogNews from "./Home/KlinikoBlogNews";
 import KlinikoCaseStudy from "./Home/KlinikoCaseStudy";
 import KlinikoDoctors from "./Home/KlinikoDoctors";
 import KlinikoServices from "./Home/KlinikoServices";
+import KlinikoTestimonials from "./Home/KlinikoTestimonials";
 import KlinikoWhyChoose from "./Home/KlinikoWhyChoose";
 
 export default function Page() {
@@ -49,7 +51,8 @@ export default function Page() {
       <KlinikoDoctors />
       <KlinikoCaseStudy />
       <KlinikoAppointment />
-      {/* <SectionThree /> */}
+      <KlinikoTestimonials />
+      <KlinikoBlogNews />
       {/* <SectionFour /> */}
       {/* <SectionFive /> */}
       {/* <SectionSix /> */}
