@@ -2,6 +2,7 @@
 
 import KlinikoHero from "@/app/(FrontEnd)/Home/KlinikoHero";
 import KlinikoAbout from "./Home/KlinikoAbout";
+import KlinikoDoctors from "./Home/KlinikoDoctors";
 import KlinikoServices from "./Home/KlinikoServices";
 import KlinikoWhyChoose from "./Home/KlinikoWhyChoose";
 
@@ -43,6 +44,7 @@ export default function Page() {
       <KlinikoAbout />
       <KlinikoServices />
       <KlinikoWhyChoose />
+      <KlinikoDoctors />
       {/* <SectionTwo /> */}
       {/* <SectionThree /> */}
       {/* <SectionFour /> */}

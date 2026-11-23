@@ -7,17 +7,29 @@ import {
   FlaskConical,
   HeartPulse,
   Microscope,
+  Pause,
+  Play,
   Siren,
   Stethoscope,
 } from "lucide-react";
+import { animate, motion, useMotionValue } from "motion/react";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-// ==========================================
-// STATIC SERVICES
-// ==========================================
+const SLIDE_INTERVAL = 3000; // One slide every 3 seconds
+const SLIDE_DURATION = 0.75; // 750 ms animated transition
+const CARD_GAP = 24;
 
 const SERVICES = [
+  {
+    id: 1,
+    number: "01",
+    title: "Advanced Medical Consultation",
+    description:
+      "Professional medical consultations and personalized healthcare guidance for patients.",
+    icon: FlaskConical,
+    href: "/services/consultation",
+  },
   {
     id: 2,
     number: "02",
@@ -32,7 +44,7 @@ const SERVICES = [
     number: "03",
     title: "Diagnostics & Laboratory Services",
     description:
-      "Accurate blood tests, imaging, ECG, and other diagnostics for proper evaluation and timely medical decision-making.",
+      "Accurate blood tests, imaging, ECG, and other diagnostics for timely medical decisions.",
     icon: Microscope,
     href: "/services/diagnostics",
   },
@@ -63,28 +75,10 @@ const SERVICES = [
     icon: Activity,
     href: "/services/health-checkups",
   },
-  {
-    id: 1,
-    number: "01",
-    title: "Advanced Medical Consultation",
-    description:
-      "Professional medical consultations and personalized healthcare guidance for patients.",
-    icon: FlaskConical,
-    href: "/services/consultation",
-  },
 ];
 
-// Duplicate the services for a seamless loop.
-const SERVICE_COUNT = SERVICES.length;
+const COUNT = SERVICES.length;
 const ALL_SLIDES = [...SERVICES, ...SERVICES, ...SERVICES];
-
-const CARD_GAP = 24;
-const AUTO_SPEED = 65; // Pixels per second
-const ARROW_DURATION = 550;
-
-// ==========================================
-// BACKGROUND DECORATIONS
-// ==========================================
 
 const CROSSES = [
   { top: "4%", left: "75%", size: 65, filled: true },
@@ -103,13 +97,7 @@ const CROSSES = [
 
 function MedicalCross({ size, filled }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg width={size} height={size} viewBox="0 0 100 100" fill="none" aria-hidden="true">
       <path
         d="M38 0H62V38H100V62H62V100H38V62H0V38H38V0Z"
         fill={filled ? "#D6F6F2" : "none"}
@@ -122,511 +110,345 @@ function MedicalCross({ size, filled }) {
 
 function SectionIcon() {
   return (
-    <svg
-      width="23"
-      height="23"
-      viewBox="0 0 32 32"
-      fill="none"
-      aria-hidden="true"
-      className="text-[#139DB3]"
-    >
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(-45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
+    <svg width="23" height="23" viewBox="0 0 32 32" fill="none" aria-hidden="true" className="text-[#139DB3]">
+      <rect x="12" y="1" width="8" height="30" rx="4" transform="rotate(45 16 16)" stroke="currentColor" strokeWidth="2.5" />
+      <rect x="12" y="1" width="8" height="30" rx="4" transform="rotate(-45 16 16)" stroke="currentColor" strokeWidth="2.5" />
       <circle cx="16" cy="16" r="2" fill="currentColor" />
     </svg>
   );
 }
 
-// ==========================================
-// SERVICE CARD
-// ==========================================
+const CARD_VARIANTS = {
+  idle: { backgroundColor: "#FFFFFF", boxShadow: "0 0 0 rgba(12,30,80,0)" },
+  hover: { backgroundColor: "#101E50", boxShadow: "0 18px 45px rgba(12,30,80,.15)" },
+};
 
 function ServiceCard({ service, cardWidth }) {
   const Icon = service.icon;
+  const [focused, setFocused] = useState(false);
 
   return (
-    <article
-      style={{
-        width: cardWidth || 350,
-        flex: `0 0 ${cardWidth || 350}px`,
+    <motion.article
+      initial="idle"
+      animate={focused ? "hover" : "idle"}
+      whileHover="hover"
+      variants={CARD_VARIANTS}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setFocused(false);
+        }
       }}
-      className="group flex min-h-[430px] min-w-0 flex-col rounded-[20px] bg-white p-6 transition-[background-color,box-shadow] duration-500 hover:bg-[#101E50] hover:shadow-[0_18px_45px_rgba(12,30,80,0.15)] sm:p-7 xl:p-8"
+      style={{ flex: `0 0 ${cardWidth}px`, width: cardWidth }}
+      className="group flex min-h-[430px] min-w-0 flex-col rounded-[20px] p-6 sm:p-7 xl:p-8"
     >
-      {/* ICON AND NUMBER */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-[9px] bg-[#159BB1] text-white transition-all duration-500 group-hover:bg-[linear-gradient(120deg,#6357ED_0%,#3385D9_48%,#139DB3_100%)] sm:h-[96px] sm:w-[96px]">
-          <Icon
-            size={46}
-            strokeWidth={1.8}
+        <div className="relative flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden rounded-[9px] bg-[#159BB1] text-white sm:h-[96px] sm:w-[96px]">
+          <motion.div
             aria-hidden="true"
-            className="transition-transform duration-500 group-hover:scale-110"
+            variants={{ idle: { opacity: 0 }, hover: { opacity: 1 } }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0 bg-gradient-to-r from-[#6357ED] via-[#3385D9] to-[#139DB3]"
           />
+          <motion.div
+            variants={{ idle: { scale: 1, rotate: 0 }, hover: { scale: 1.1, rotate: 5 } }}
+            transition={{ type: "spring", stiffness: 260, damping: 18 }}
+            className="relative z-10"
+          >
+            <Icon size={46} strokeWidth={1.8} aria-hidden="true" />
+          </motion.div>
         </div>
-
-        <span className="text-[38px] leading-none font-bold text-[#D0EBF0] transition-colors duration-500 group-hover:text-[#174477] sm:text-[42px]">
+        <motion.span
+          variants={{ idle: { color: "#D0EBF0" }, hover: { color: "#174477" } }}
+          className="text-[38px] font-bold leading-none sm:text-[42px]"
+        >
           {service.number}
-        </span>
+        </motion.span>
       </div>
 
-      {/* HOVER UNDERLINE TITLE */}
-      <h3 className="mt-8 min-h-[70px] text-[21px] leading-[1.35] font-semibold text-[#101D4E] decoration-2 underline-offset-[6px] transition-colors duration-500 group-hover:text-white group-hover:underline group-hover:decoration-white sm:text-[23px] xl:text-[25px]">
-        {service.title}
-      </h3>
+      {/* The underline is painted independently under EACH wrapped text line. */}
+      <div className="mt-8 min-h-[80px]">
+        <motion.h3
+          variants={{ idle: { color: "#101D4E" }, hover: { color: "#FFFFFF" } }}
+          transition={{ duration: 0.35 }}
+          className="text-[21px] font-semibold leading-[1.45] sm:text-[23px] xl:text-[25px]"
+        >
+          <motion.span
+            variants={{
+              idle: { backgroundSize: "0% 2px" },
+              hover: { backgroundSize: "100% 2px" },
+            }}
+            transition={{ duration: 0.38, ease: "easeOut" }}
+            style={{
+              backgroundImage: "linear-gradient(#FFFFFF, #FFFFFF)",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "left bottom",
+              boxDecorationBreak: "clone",
+              WebkitBoxDecorationBreak: "clone",
+              paddingBottom: "4px",
+            }}
+          >
+            {service.title}
+          </motion.span>
+        </motion.h3>
+      </div>
 
-      {/* DESCRIPTION */}
-      <p className="mt-3 flex-1 text-[15px] leading-[1.75] text-[#78818A] transition-colors duration-500 group-hover:text-[#E1E9F4] sm:text-[16px]">
+      <motion.p
+        variants={{ idle: { color: "#78818A" }, hover: { color: "#E1E9F4" } }}
+        transition={{ duration: 0.4 }}
+        className="mt-3 flex-1 text-[15px] leading-[1.75] sm:text-[16px]"
+      >
         {service.description}
-      </p>
+      </motion.p>
 
-      {/* READ MORE */}
-      <div className="mt-5 border-t border-[#E8EDF0] pt-6 transition-colors duration-500 group-hover:border-white/20">
+      <motion.div
+        variants={{ idle: { borderColor: "#E8EDF0" }, hover: { borderColor: "rgba(255,255,255,.2)" } }}
+        className="mt-5 border-t pt-6"
+      >
         <Link
           href={service.href}
-          className="inline-flex min-h-[40px] min-w-[137px] items-center justify-center rounded-full bg-[#159BB1] px-6 text-sm font-semibold text-white transition-[transform,box-shadow] duration-300 group-hover:bg-[linear-gradient(100deg,#6255EC_0%,#327BD9_50%,#139DB3_100%)] hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
+          className="relative inline-flex min-h-[40px] min-w-[137px] items-center justify-center overflow-hidden rounded-full bg-[#159BB1] px-6 text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
         >
-          Read More
+          <motion.span
+            aria-hidden="true"
+            variants={{ idle: { opacity: 0 }, hover: { opacity: 1 } }}
+            transition={{ duration: 0.35 }}
+            className="absolute inset-0 bg-gradient-to-r from-[#6255EC] via-[#327BD9] to-[#139DB3]"
+          />
+          <span className="relative z-10">Read More</span>
         </Link>
-      </div>
-    </article>
+      </motion.div>
+    </motion.article>
   );
 }
 
-// ==========================================
-// MAIN SERVICES COMPONENT
-// ==========================================
-
 export default function KlinikoServices() {
   const viewportRef = useRef(null);
-  const trackRef = useRef(null);
+  const x = useMotionValue(0);
 
-  const cycleRef = useRef(0);
+  const indexRef = useRef(COUNT); // Start inside the middle copy.
   const stepRef = useRef(0);
-
-  const pausedRef = useRef(false);
-  const focusedRef = useRef(false);
+  const animationRef = useRef(null);
+  const movingRef = useRef(false);
+  const visibleRef = useRef(false);
+  const focusRef = useRef(false);
   const touchingRef = useRef(false);
-  const manualRef = useRef(false);
-  const visibleRef = useRef(true);
-  const reducedMotionRef = useRef(false);
-
-  const manualFrameRef = useRef(null);
+  const touchStartRef = useRef(null);
   const touchTimerRef = useRef(null);
 
   const [cardWidth, setCardWidth] = useState(0);
-
-  // ==========================================
-  // KEEP THE INFINITE CAROUSEL CENTERED
-  // ==========================================
-
-  const normalizeScroll = (viewport) => {
-    const cycle = cycleRef.current;
-
-    if (!viewport || cycle <= 0) return;
-
-    let left = viewport.scrollLeft;
-
-    while (left >= cycle * 2) {
-      left -= cycle;
-    }
-
-    while (left < cycle) {
-      left += cycle;
-    }
-
-    if (Math.abs(left - viewport.scrollLeft) > 0.01) {
-      viewport.scrollLeft = left;
-    }
-  };
-
-  // ==========================================
-  // RESPONSIVE CARD MEASUREMENT
-  // ==========================================
+  const [playing, setPlaying] = useState(true);
 
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
-
     if (!viewport) return;
 
     const measure = () => {
       const width = viewport.getBoundingClientRect().width;
-
       if (width <= 0) return;
 
-      const columns =
-        window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
-
+      const columns = window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
       const nextWidth = (width - CARD_GAP * (columns - 1)) / columns;
+      const nextStep = nextWidth + CARD_GAP;
+      if (Math.abs(stepRef.current - nextStep) < 0.2) return;
 
-      setCardWidth((previous) =>
-        Math.abs(previous - nextWidth) > 0.1 ? nextWidth : previous,
-      );
+      // Stop an old transition before repositioning on resize.
+      animationRef.current?.stop();
+      animationRef.current = null;
+      movingRef.current = false;
+
+      stepRef.current = nextStep;
+      x.set(-indexRef.current * nextStep);
+      setCardWidth(nextWidth);
     };
 
     measure();
-
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
-
     window.addEventListener("resize", measure);
 
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, []);
-
-  // ==========================================
-  // INITIALIZE AND UPDATE LOOP MEASUREMENTS
-  // ==========================================
-
-  useLayoutEffect(() => {
-    const viewport = viewportRef.current;
-    const track = trackRef.current;
-
-    if (!viewport || !track || cardWidth <= 0) return;
-
-    const slides = track.children;
-
-    if (slides.length <= SERVICE_COUNT) return;
-
-    const oldCycle = cycleRef.current;
-    const oldStep = stepRef.current;
-
-    const progress =
-      oldStep > 0 ? (viewport.scrollLeft - oldCycle) / oldStep : 0;
-
-    const newCycle = slides[SERVICE_COUNT].offsetLeft - slides[0].offsetLeft;
-
-    if (newCycle <= 0) return;
-
-    cycleRef.current = newCycle;
-    stepRef.current = cardWidth + CARD_GAP;
-
-    viewport.scrollLeft = newCycle + progress * stepRef.current;
-
-    normalizeScroll(viewport);
-  }, [cardWidth]);
-
-  // ==========================================
-  // REDUCED MOTION SUPPORT
-  // ==========================================
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const update = () => {
-      reducedMotionRef.current = media.matches;
-    };
-
-    update();
-
-    media.addEventListener("change", update);
-
-    return () => {
-      media.removeEventListener("change", update);
-    };
-  }, []);
-
-  // ==========================================
-  // PAUSE WHEN OUT OF VIEW
-  // ==========================================
+  }, [x]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
-
     if (!viewport) return;
-
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        visibleRef.current = entry.isIntersecting;
-      },
+      ([entry]) => { visibleRef.current = entry.isIntersecting; },
       { threshold: 0.1 },
     );
-
     observer.observe(viewport);
-
     return () => observer.disconnect();
   }, []);
 
-  // ==========================================
-  // CONTINUOUS AUTO SCROLL RIGHT TO LEFT
-  // ==========================================
+  const move = (direction) => {
+    const step = stepRef.current;
+    if (step <= 0 || movingRef.current) return;
+
+    movingRef.current = true;
+    const nextIndex = indexRef.current + direction;
+
+    // Motion animates the actual carousel track, not native scrollLeft.
+    animationRef.current = animate(x, -nextIndex * step, {
+      duration: SLIDE_DURATION,
+      ease: [0.22, 1, 0.36, 1],
+      onComplete: () => {
+        indexRef.current = nextIndex;
+
+        // Jump to the IDENTICAL middle copy after each complete loop.
+        // As both copies show the same cards, the reset is invisible.
+        if (indexRef.current >= COUNT * 2) indexRef.current -= COUNT;
+        if (indexRef.current < COUNT) indexRef.current += COUNT;
+
+        x.set(-indexRef.current * stepRef.current);
+        movingRef.current = false;
+        animationRef.current = null;
+      },
+    });
+  };
 
   useEffect(() => {
-    let frame = null;
-    let previousTime = null;
+    if (!playing) return;
 
-    const animate = (time) => {
-      if (previousTime === null) {
-        previousTime = time;
-      }
+    const interval = window.setInterval(() => {
+      if (
+        document.hidden ||
+        !visibleRef.current ||
+        focusRef.current ||
+        touchingRef.current ||
+        movingRef.current
+      ) return;
 
-      const delta = Math.min(time - previousTime, 50);
-      previousTime = time;
+      move(1); // Visually moves all cards LEFT, one position at a time.
+    }, SLIDE_INTERVAL);
 
-      const viewport = viewportRef.current;
+    return () => window.clearInterval(interval);
+  }, [playing]);
 
-      const canAutoScroll =
-        viewport &&
-        cycleRef.current > 0 &&
-        !document.hidden &&
-        !pausedRef.current &&
-        !focusedRef.current &&
-        !touchingRef.current &&
-        !manualRef.current &&
-        visibleRef.current &&
-        !reducedMotionRef.current;
-
-      if (canAutoScroll) {
-        // Positive scrollLeft moves content
-        // visually from right to left.
-        viewport.scrollLeft += (delta * AUTO_SPEED) / 1000;
-
-        normalizeScroll(viewport);
-      }
-
-      frame = requestAnimationFrame(animate);
-    };
-
-    frame = requestAnimationFrame(animate);
-
-    return () => {
-      if (frame !== null) {
-        cancelAnimationFrame(frame);
-      }
-    };
-  }, []);
-
-  // ==========================================
-  // WORKING LEFT / RIGHT BUTTONS
-  // ==========================================
-
-  const moveSlide = (direction) => {
-    const viewport = viewportRef.current;
-    const step = stepRef.current;
-
-    if (!viewport || step <= 0) return;
-
-    // Cancel the previous manual animation
-    // if another arrow is clicked.
-    if (manualFrameRef.current !== null) {
-      cancelAnimationFrame(manualFrameRef.current);
-      manualFrameRef.current = null;
-    }
-
-    manualRef.current = true;
-
-    const startLeft = viewport.scrollLeft;
-    const distance = step * direction;
-
-    // Accessible instant navigation
-    if (reducedMotionRef.current) {
-      viewport.scrollLeft = startLeft + distance;
-      normalizeScroll(viewport);
-      manualRef.current = false;
-      return;
-    }
-
-    let startTime = null;
-
-    const animateMove = (time) => {
-      if (startTime === null) {
-        startTime = time;
-      }
-
-      const progress = Math.min((time - startTime) / ARROW_DURATION, 1);
-
-      // Smooth ease-out cubic animation
-      const eased = 1 - Math.pow(1 - progress, 3);
-
-      viewport.scrollLeft = startLeft + distance * eased;
-
-      if (progress < 1) {
-        manualFrameRef.current = requestAnimationFrame(animateMove);
-      } else {
-        normalizeScroll(viewport);
-
-        manualRef.current = false;
-        manualFrameRef.current = null;
-      }
-    };
-
-    manualFrameRef.current = requestAnimationFrame(animateMove);
-  };
-
-  // ==========================================
-  // MOBILE TOUCH HANDLING
-  // ==========================================
-
-  const handleTouchStart = () => {
-    if (touchTimerRef.current !== null) {
-      clearTimeout(touchTimerRef.current);
-    }
-
+  const handleTouchStart = (event) => {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
     touchingRef.current = true;
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
-  const handleTouchEnd = () => {
-    touchTimerRef.current = setTimeout(() => {
-      normalizeScroll(viewportRef.current);
+  const handleTouchEnd = (event) => {
+    const start = touchStartRef.current;
+    const touch = event.changedTouches[0];
+
+    if (start && touch) {
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        move(dx < 0 ? 1 : -1);
+      }
+    }
+
+    touchStartRef.current = null;
+    touchTimerRef.current = window.setTimeout(() => {
       touchingRef.current = false;
       touchTimerRef.current = null;
-    }, 1200);
+    }, 600);
   };
 
-  // ==========================================
-  // CLEANUP
-  // ==========================================
-
-  useEffect(() => {
-    return () => {
-      if (manualFrameRef.current !== null) {
-        cancelAnimationFrame(manualFrameRef.current);
-      }
-
-      if (touchTimerRef.current !== null) {
-        clearTimeout(touchTimerRef.current);
-      }
-    };
+  useEffect(() => () => {
+    animationRef.current?.stop();
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
   }, []);
-
-  // ==========================================
-  // RENDER
-  // ==========================================
 
   return (
     <section
       aria-labelledby="kliniko-services-title"
       className="relative isolate overflow-hidden bg-[#F1F8F5] py-20 sm:py-24 lg:py-[100px]"
     >
-      {/* BACKGROUND MEDICAL CROSSES */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
-      >
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         {CROSSES.map((cross, index) => (
-          <div
-            key={index}
-            className="absolute opacity-80"
-            style={{
-              top: cross.top,
-              left: cross.left,
-            }}
-          >
+          <div key={index} className="absolute opacity-80" style={{ top: cross.top, left: cross.left }}>
             <MedicalCross size={cross.size} filled={cross.filled} />
           </div>
         ))}
       </div>
 
-      {/* SAME CONTAINER AS HERO */}
       <div className="mx-auto w-full max-w-[1540px] px-6 sm:px-10 lg:px-12 2xl:px-6">
-        {/* HEADER */}
         <div className="mx-auto max-w-[850px] text-center">
           <div className="flex items-center justify-center gap-2">
             <SectionIcon />
-
-            <span className="text-[18px] font-semibold text-[#101D4E]">
-              Service
-            </span>
-
+            <span className="text-[18px] font-semibold text-[#101D4E]">Service</span>
             <SectionIcon />
           </div>
-
           <h2
             id="kliniko-services-title"
-            className="mx-auto mt-5 max-w-[750px] text-[clamp(2rem,3.3vw,3.25rem)] leading-[1.2] font-bold tracking-[-0.025em] text-[#101D4E]"
+            className="mx-auto mt-5 max-w-[750px] text-[clamp(2rem,3.3vw,3.25rem)] font-bold leading-[1.2] tracking-[-0.025em] text-[#101D4E]"
           >
             Delivering Trusted Medical
             <span className="block">Care With Precision</span>
           </h2>
         </div>
 
-        {/* CAROUSEL VIEWPORT */}
+        {/* Motion transforms the track from right to left once per 3 seconds. */}
         <div
           ref={viewportRef}
           dir="ltr"
           role="region"
           aria-roledescription="carousel"
           aria-label="Medical services"
-          className="mt-12 min-w-0 [scrollbar-width:none] overflow-x-auto overflow-y-hidden rounded-[20px] lg:mt-14 [&::-webkit-scrollbar]:hidden"
-          style={{
-            scrollBehavior: "auto",
-            scrollSnapType: "none",
-            overscrollBehaviorX: "contain",
-          }}
-          onMouseEnter={() => {
-            pausedRef.current = true;
-          }}
-          onMouseLeave={() => {
-            pausedRef.current = false;
-          }}
-          onFocusCapture={() => {
-            focusedRef.current = true;
-          }}
+          aria-live="off"
+          className="mt-12 min-w-0 overflow-hidden rounded-[20px] lg:mt-14"
+          onFocusCapture={() => { focusRef.current = true; }}
           onBlurCapture={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget)) {
-              focusedRef.current = false;
+              focusRef.current = false;
             }
           }}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchEnd}
+          style={{ touchAction: "pan-y" }}
         >
-          {/* INFINITE SCROLL TRACK */}
-          <div
-            ref={trackRef}
-            className="relative flex w-max items-stretch gap-6"
-            style={{
-              opacity: cardWidth > 0 ? 1 : 0,
-            }}
+          <motion.div
+            style={{ x, opacity: cardWidth > 0 ? 1 : 0 }}
+            className="flex w-full items-stretch gap-6 will-change-transform"
           >
             {ALL_SLIDES.map((service, index) => (
               <ServiceCard
                 key={`${service.id}-${index}`}
                 service={service}
-                cardWidth={cardWidth}
+                cardWidth={cardWidth || 350}
               />
             ))}
-          </div>
+          </motion.div>
         </div>
 
-        {/* NAVIGATION ARROWS */}
         <div className="mt-10 flex items-center justify-center">
           <div className="flex items-center gap-2 rounded-full border border-[#B5E3E7] bg-white/75 p-1.5">
             <button
               type="button"
-              onClick={() => moveSlide(-1)}
+              onClick={() => move(-1)}
               aria-label="Previous service"
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[#E9F4F3] text-[#101D4E] transition-colors duration-300 hover:bg-[#159BB1] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
             >
-              <ChevronLeft size={23} strokeWidth={2} />
+              <ChevronLeft size={23} />
             </button>
-
             <button
               type="button"
-              onClick={() => moveSlide(1)}
+              onClick={() => setPlaying((current) => !current)}
+              aria-label={playing ? "Pause automatic sliding" : "Resume automatic sliding"}
+              aria-pressed={!playing}
+              className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[#159BB1] text-white transition-colors duration-300 hover:bg-[#101E50] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
+            >
+              {playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => move(1)}
               aria-label="Next service"
               className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[#E9F4F3] text-[#101D4E] transition-colors duration-300 hover:bg-[#159BB1] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159BB1]"
             >
-              <ChevronRight size={23} strokeWidth={2} />
+              <ChevronRight size={23} />
             </button>
           </div>
         </div>

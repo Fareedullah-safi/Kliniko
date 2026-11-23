@@ -339,26 +339,33 @@ function FeatureCard({
 
       {/* CARD TEXT */}
       <div className="min-w-0 flex-1">
-        <div className="relative inline-block max-w-full">
-          <h3 className="text-[18px] leading-[1.3] font-bold tracking-[-0.015em] sm:text-[22px] xl:text-[27px]">
+        {/* TITLE WITH DOCTOR-STYLE UNDERLINE */}
+        <motion.div
+          initial="idle"
+          animate={hovered ? "hover" : "idle"}
+          className="relative inline-block max-w-full"
+        >
+          <h3 className="text-[18px] leading-[1.3] font-bold tracking-[-0.015em] text-white sm:text-[22px] xl:text-[27px]">
             {feature.title}
           </h3>
 
-          {/* SINGLE ANIMATED UNDERLINE */}
+          {/* ONE ANIMATED UNDERLINE */}
           <motion.span
             aria-hidden="true"
             initial={false}
-            animate={{
-              scaleX: hovered ? 1 : 0,
+            variants={{
+              idle: { scaleX: 0 },
+              hover: { scaleX: 1 },
             }}
             transition={{
-              duration: reduced ? 0 : 0.36,
+              duration: 0.35,
               ease: "easeOut",
             }}
-            className="absolute -bottom-[7px] left-0 h-[2px] w-full origin-left rounded-full bg-white"
+            className="absolute -bottom-[5px] left-0 h-[2px] w-full origin-left rounded-full bg-white"
           />
-        </div>
+        </motion.div>
 
+        {/* DESCRIPTION */}
         <p className="mt-3 text-[13px] leading-[1.6] font-medium text-[#eff6fd] sm:text-[15px] xl:text-[17px]">
           {feature.description}
         </p>
