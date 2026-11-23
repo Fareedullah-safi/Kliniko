@@ -1,15 +1,9 @@
-
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { Headphones, Mail, MapPinned } from "lucide-react";
 import { motion } from "motion/react";
+import Link from "next/link";
 import { useState } from "react";
-
-// ==========================================
-// FOOTER LINKS
-// ==========================================
 
 const SERVICES = [
   { title: "Physiotherapy", href: "/services/physiotherapy" },
@@ -26,7 +20,7 @@ const USEFUL_LINKS = [
 ];
 
 // ==========================================
-// MOLECULAR BACKGROUND DECORATION
+// BACKGROUND MOLECULES
 // ==========================================
 
 const NODES = [
@@ -55,14 +49,40 @@ const NODES = [
 ];
 
 const EDGES = [
-  [0, 1], [1, 2], [2, 3], [3, 4], [4, 5],
-  [5, 6], [6, 7], [7, 8], [8, 9], [9, 10],
-  [0, 11], [1, 12], [2, 12], [2, 13],
-  [4, 13], [4, 14], [6, 14], [6, 15],
-  [8, 16], [8, 17], [10, 17], [11, 12],
-  [11, 18], [12, 13], [13, 14], [13, 19],
-  [14, 15], [15, 16], [15, 20], [16, 17],
-  [17, 21], [18, 19], [19, 20], [20, 21],
+  [0, 1],
+  [1, 2],
+  [2, 3],
+  [3, 4],
+  [4, 5],
+  [5, 6],
+  [6, 7],
+  [7, 8],
+  [8, 9],
+  [9, 10],
+  [0, 11],
+  [1, 12],
+  [2, 12],
+  [2, 13],
+  [4, 13],
+  [4, 14],
+  [6, 14],
+  [6, 15],
+  [8, 16],
+  [8, 17],
+  [10, 17],
+  [11, 12],
+  [11, 18],
+  [12, 13],
+  [13, 14],
+  [13, 19],
+  [14, 15],
+  [15, 16],
+  [15, 20],
+  [16, 17],
+  [17, 21],
+  [18, 19],
+  [19, 20],
+  [20, 21],
 ];
 
 function MoleculePattern({ className = "" }) {
@@ -73,11 +93,7 @@ function MoleculePattern({ className = "" }) {
       aria-hidden="true"
       className={className}
     >
-      <g
-        stroke="#3974A7"
-        strokeWidth="3"
-        strokeOpacity="0.38"
-      >
+      <g stroke="#3974A7" strokeWidth="3" strokeOpacity="0.38">
         {EDGES.map(([a, b], index) => (
           <line
             key={index}
@@ -91,12 +107,7 @@ function MoleculePattern({ className = "" }) {
 
       <g fill="#3974A7" fillOpacity="0.43">
         {NODES.map(([x, y, radius], index) => (
-          <circle
-            key={index}
-            cx={x}
-            cy={y}
-            r={radius}
-          />
+          <circle key={index} cx={x} cy={y} r={radius} />
         ))}
       </g>
     </svg>
@@ -104,25 +115,15 @@ function MoleculePattern({ className = "" }) {
 }
 
 // ==========================================
-// TOP CONTACT INFORMATION
+// CONTACT INFORMATION
 // ==========================================
 
-function ContactItem({
-  icon: Icon,
-  label,
-  value,
-  href,
-  address = false,
-}) {
+function ContactItem({ icon: Icon, label, value, href, address = false }) {
   return (
     <div className="flex min-w-0 items-center gap-4 sm:gap-5 lg:gap-[21px]">
-      {/* ICON BOX */}
       <motion.div
         initial={false}
-        whileHover={{
-          y: -4,
-          rotate: -4,
-        }}
+        whileHover={{ y: -4, rotate: -4 }}
         transition={{
           type: "spring",
           stiffness: 300,
@@ -138,10 +139,9 @@ function ContactItem({
         />
       </motion.div>
 
-      {/* CONTACT TEXT */}
       <div className="min-w-0">
         {label && (
-          <p className="mb-[5px] text-[14px] font-semibold text-white sm:text-[15px]">
+          <p className="mb-[5px] text-[12px] font-semibold text-white sm:text-[13px]">
             {label}
           </p>
         )}
@@ -149,12 +149,12 @@ function ContactItem({
         {href ? (
           <a
             href={href}
-            className="break-words text-[17px] font-bold leading-[1.45] text-white transition-colors duration-300 hover:text-[#C7F5FB] sm:text-[20px] xl:text-[22px]"
+            className="text-[16px] leading-[1.45] font-bold break-words text-white transition-colors duration-300 hover:text-[#C7F5FB] sm:text-[17px] xl:text-[18px]"
           >
             {value}
           </a>
         ) : (
-          <p className="max-w-[260px] text-[18px] font-bold leading-[1.4] text-white sm:text-[21px] xl:text-[23px]">
+          <p className="max-w-[260px] text-[18px] leading-[1.4] font-bold text-white sm:text-[21px] xl:text-[23px]">
             {value}
           </p>
         )}
@@ -164,24 +164,57 @@ function ContactItem({
 }
 
 // ==========================================
-// FOOTER COLUMN TITLE
+// KLINIKO LOGO — INLINE SVG
+// NO IMAGE FILE REQUIRED
+// ==========================================
+
+function KlinikoLogo() {
+  return (
+    <svg
+      viewBox="0 0 277 67"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className="h-auto w-[240px] sm:w-[265px]"
+    >
+      <path
+        fill="#FFFFFF"
+        fillRule="evenodd"
+        d="M185,23 183,25 183,55 185,57 188,57 190,54 190,26 188,23Z M131,23 129,25 129,55 131,57 133,57 135,56 135,24 134,23Z M170,24 165,22 160,22 159,23 157,23 152,27 149,23 146,23 144,26 144,54 146,57 149,57 151,55 151,34 152,32 157,28 162,28 166,31 167,33 167,55 169,57 172,57 174,54 174,34 173,33 173,29Z M248,21 247,22 242,23 237,27 234,33 233,41 234,42 235,48 239,53 242,55 244,55 248,57 253,57 254,56 259,55 264,51 267,46 268,36 267,35 266,30 262,25 257,22Z M248,27 253,27 255,28 261,35 261,43 260,45 256,49 251,51 245,49 241,45 241,43 240,42 240,35 241,33Z M71,12 69,14 69,56 71,57 75,56 76,54 76,43 82,37 84,38 98,57 103,56 104,54 103,53 103,51 88,32 88,31 103,17 103,13 102,12 99,12 77,34 76,33 76,15 75,13Z M184,11 183,12 183,16 184,17 189,17 190,16 190,12 189,11Z M130,11 129,12 129,17 135,17 136,13 134,11Z M117,9 114,9 112,11 112,55 115,57 118,55 118,10Z"
+      />
+
+      <path
+        fill="#159AAF"
+        fillRule="evenodd"
+        d="M40,50 39,49 35,51 32,51 27,54 25,54 25,58 38,58 40,55Z M251,32 246,34 245,36 245,43 248,46 252,46 254,45 256,41 256,37 255,35Z M201,9 199,12 199,53 202,57 204,57 207,53 207,46 210,43 223,56 225,57 227,56 229,53 228,51 216,38 227,27 227,24 225,22 221,23 208,36 207,35 207,12 205,9Z M38,5 21,5 19,7 19,20 18,21 5,21 3,23 3,40 4,41 18,41 19,40 19,37 21,32 26,26 31,23 33,23 40,20 40,8Z"
+      />
+
+      <path
+        fill="#5959EB"
+        fillRule="evenodd"
+        d="M54,17 48,21 33,25 29,27 24,32 21,39 21,46 20,47 20,49 21,50 21,56 23,61 23,58 22,57 22,50 23,49 24,44 28,40 29,42 26,46 25,51 28,51 31,49 42,46 49,40 52,35 53,29 54,28 54,19 55,18Z M31,38 32,39 29,41 28,40Z M31,38 32,37 33,38 32,39Z M32,37 33,36 34,37 33,38Z"
+      />
+    </svg>
+  );
+}
+
+// ==========================================
+// FOOTER HEADING
 // ==========================================
 
 function FooterHeading({ children }) {
   return (
     <div className="mb-7">
-      <h3 className="text-[24px] font-bold leading-[1.2] text-white sm:text-[26px] lg:text-[27px]">
+      <h3 className="text-[24px] leading-[1.2] font-bold text-white sm:text-[26px] lg:text-[27px]">
         {children}
       </h3>
 
-      {/* TURQUOISE UNDERLINE */}
       <div className="mt-[18px] h-[2px] w-[96px] bg-[#14A0B6]" />
     </div>
   );
 }
 
 // ==========================================
-// FOOTER LINKS WITH HOVER ANIMATION
+// FOOTER LINKS
 // ==========================================
 
 function FooterLinks({ links }) {
@@ -200,7 +233,7 @@ function FooterLinks({ links }) {
           >
             <Link
               href={item.href}
-              className="text-[15px] font-medium leading-[1.45] text-[#F3F5FB] transition-colors duration-200 hover:text-[#39C6D8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#39C6D8] sm:text-[16px]"
+              className="text-[15px] leading-[1.45] font-medium text-[#F3F5FB] transition-colors duration-200 hover:text-[#39C6D8] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#39C6D8] sm:text-[16px]"
             >
               {item.title}
             </Link>
@@ -212,12 +245,10 @@ function FooterLinks({ links }) {
 }
 
 // ==========================================
-// MAIN FOOTER
+// MAIN FOOTER COMPONENT
 // ==========================================
 
-export default function KlinikoFooter({
-  onNewsletterSubscribe,
-}) {
+export default function KlinikoFooter({ onNewsletterSubscribe }) {
   const [newsletterState, setNewsletterState] = useState({
     status: "idle",
     message: "",
@@ -232,15 +263,12 @@ export default function KlinikoFooter({
 
     const form = event.currentTarget;
 
-    const email = new FormData(form)
-      .get("email")
-      ?.toString()
-      .trim();
+    const email = new FormData(form).get("email")?.toString().trim();
 
     if (!email) return;
 
-    // Frontend-only until a real subscription
-    // function is provided.
+    // The newsletter is frontend-only
+    // until a real submission handler is provided.
     if (typeof onNewsletterSubscribe !== "function") {
       setNewsletterState({
         status: "info",
@@ -259,9 +287,7 @@ export default function KlinikoFooter({
       const result = await onNewsletterSubscribe(email);
 
       if (result?.success === false) {
-        throw new Error(
-          result.message || "Subscription was unsuccessful.",
-        );
+        throw new Error(result.message || "Subscription was unsuccessful.");
       }
 
       setNewsletterState({
@@ -273,8 +299,7 @@ export default function KlinikoFooter({
     } catch (error) {
       setNewsletterState({
         status: "error",
-        message:
-          error?.message || "Unable to subscribe right now.",
+        message: error?.message || "Unable to subscribe right now.",
       });
     }
   };
@@ -282,16 +307,16 @@ export default function KlinikoFooter({
   return (
     <footer className="relative isolate overflow-hidden bg-[#101E50] text-white">
       {/* ====================================
-          BACKGROUND MOLECULAR PATTERN
+          BACKGROUND MOLECULAR PATTERNS
       ==================================== */}
 
       <div
         className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
         aria-hidden="true"
       >
-        <MoleculePattern className="absolute -left-[260px] top-[120px] h-[580px] w-[900px] opacity-[0.34]" />
+        <MoleculePattern className="absolute top-[120px] -left-[260px] h-[580px] w-[900px] opacity-[0.34]" />
 
-        <MoleculePattern className="absolute -right-[230px] -top-[135px] h-[670px] w-[1030px] rotate-180 opacity-[0.25]" />
+        <MoleculePattern className="absolute -top-[135px] -right-[230px] h-[670px] w-[1030px] rotate-180 opacity-[0.25]" />
 
         <MoleculePattern className="absolute bottom-[-200px] left-[24%] h-[570px] w-[850px] opacity-[0.13]" />
       </div>
@@ -301,21 +326,18 @@ export default function KlinikoFooter({
       ==================================== */}
 
       <div className="relative mx-auto w-full max-w-[1540px] px-6 pt-[75px] sm:px-10 sm:pt-[90px] lg:px-12 lg:pt-[112px] 2xl:px-6">
-
         {/* ====================================
-            TURQUOISE CONTACT BAR
+            TOP CONTACT BAR
         ==================================== */}
 
         <div className="relative overflow-hidden rounded-[21px] bg-[#189CAF] px-5 py-7 sm:px-8 sm:py-9 lg:px-[42px] lg:py-[41px]">
-
-          {/* SUBTLE GRADIENT OVERLAY */}
+          {/* SUBTLE OVERLAY */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,rgba(255,255,255,0.015),rgba(255,255,255,0.04),rgba(0,0,0,0.02))]"
           />
 
           <div className="relative grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-[1.15fr_1.15fr_1fr] lg:items-center lg:gap-8">
-
             {/* ADDRESS */}
             <ContactItem
               icon={MapPinned}
@@ -323,7 +345,7 @@ export default function KlinikoFooter({
               address
             />
 
-            {/* EMAIL */}
+            {/* EMAIL — SMALLER FONT */}
             <ContactItem
               icon={Mail}
               label="Email Address"
@@ -331,7 +353,7 @@ export default function KlinikoFooter({
               href="mailto:info@example.com"
             />
 
-            {/* PHONE */}
+            {/* PHONE — SMALLER FONT */}
             <ContactItem
               icon={Headphones}
               label="Call Anytime"
@@ -345,58 +367,39 @@ export default function KlinikoFooter({
             FOUR COLUMN FOOTER BODY
         ==================================== */}
 
-        <div className="grid grid-cols-1 gap-x-9 gap-y-12 pb-[84px] pt-[77px] sm:grid-cols-2 lg:grid-cols-[1.52fr_0.82fr_0.77fr_1.22fr] lg:gap-x-[44px] lg:pb-[100px] lg:pt-[82px]">
-
-          {/* ==================================
-              COLUMN 1: LOGO & DESCRIPTION
-          ================================== */}
-
+        <div className="grid grid-cols-1 gap-x-9 gap-y-12 pt-[77px] pb-[84px] sm:grid-cols-2 lg:grid-cols-[1.52fr_0.82fr_0.77fr_1.22fr] lg:gap-x-[44px] lg:pt-[82px] lg:pb-[100px]">
+          {/* COLUMN 1: LOGO AND DESCRIPTION */}
           <div className="min-w-0">
             <Link
               href="/"
               aria-label="Kliniko home"
               className="inline-block rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#2DBFD0]"
             >
-              <Image
-                src="/images/footer/kliniko-logo.png"
-                alt="Kliniko"
-                width={277}
-                height={67}
-                sizes="277px"
-                className="h-auto w-[240px] object-contain sm:w-[265px]"
-              />
+              <KlinikoLogo />
             </Link>
 
-            <p className="mt-[25px] max-w-[365px] text-[15px] font-medium leading-[1.8] text-[#E9EEFB] sm:text-[16px]">
-              Kliniko provides advanced medical services, expert
-              consultation, and patient-focused care designed
-              to uphold the highest standards in modern
-              healthcare.
+            <p className="mt-[25px] max-w-[365px] text-[15px] leading-[1.8] font-medium text-[#E9EEFB] sm:text-[16px]">
+              Kliniko provides advanced medical services, expert consultation,
+              and patient-focused care designed to uphold the highest standards
+              in modern healthcare.
             </p>
           </div>
 
-          {/* ==================================
-              COLUMN 2: SERVICES
-          ================================== */}
-
+          {/* COLUMN 2: OUR SERVICES */}
           <div className="min-w-0">
             <FooterHeading>Our Services</FooterHeading>
+
             <FooterLinks links={SERVICES} />
           </div>
 
-          {/* ==================================
-              COLUMN 3: USEFUL LINKS
-          ================================== */}
-
+          {/* COLUMN 3: USEFUL LINKS */}
           <div className="min-w-0">
             <FooterHeading>Useful Links</FooterHeading>
+
             <FooterLinks links={USEFUL_LINKS} />
           </div>
 
-          {/* ==================================
-              COLUMN 4: NEWSLETTER
-          ================================== */}
-
+          {/* COLUMN 4: NEWSLETTER */}
           <div className="min-w-0">
             <FooterHeading>Newsletter</FooterHeading>
 
@@ -408,10 +411,7 @@ export default function KlinikoFooter({
               onSubmit={handleNewsletter}
               className="flex flex-col items-start gap-[15px]"
             >
-              <label
-                htmlFor="footer-newsletter-email"
-                className="sr-only"
-              >
+              <label htmlFor="footer-newsletter-email" className="sr-only">
                 Email Address
               </label>
 
@@ -423,10 +423,10 @@ export default function KlinikoFooter({
                 autoComplete="email"
                 maxLength={254}
                 placeholder="Email Address"
-                className="h-[52px] w-full rounded-[10px] border-[1.5px] border-[#159FB4] bg-[#2C3C66] px-[25px] text-[15px] font-medium text-white outline-none transition-all duration-300 placeholder:text-white focus:border-[#4CCBDB] focus:ring-2 focus:ring-[#159FB4]/25"
+                className="h-[52px] w-full rounded-[10px] border-[1.5px] border-[#159FB4] bg-[#2C3C66] px-[25px] text-[15px] font-medium text-white transition-all duration-300 outline-none placeholder:text-white focus:border-[#4CCBDB] focus:ring-2 focus:ring-[#159FB4]/25"
               />
 
-              {/* ANIMATED SUBSCRIBE BUTTON */}
+              {/* SUBSCRIBE BUTTON */}
               <motion.button
                 type="submit"
                 disabled={newsletterState.status === "loading"}
@@ -440,7 +440,7 @@ export default function KlinikoFooter({
                 }}
                 className="group relative inline-flex min-h-[48px] cursor-pointer items-center justify-center overflow-hidden rounded-[11px] bg-[#159FB4] px-[28px] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#101E50] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {/* PURPLE → BLUE → TEAL HOVER */}
+                {/* PURPLE / BLUE / TEAL HOVER */}
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#6255EC] via-[#327BD9] to-[#139DB3] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
@@ -473,23 +473,16 @@ export default function KlinikoFooter({
       </div>
 
       {/* ====================================
-          COPYRIGHT — NETHUB ONLY
+          COPYRIGHT — NETHUB CREDITS
       ==================================== */}
 
       <div className="relative z-10 bg-[#2A3965]/80">
         <div className="mx-auto flex w-full max-w-[1540px] flex-col gap-4 px-6 py-[26px] sm:px-10 lg:flex-row lg:items-center lg:justify-between lg:px-12 2xl:px-6">
-
-          {/* ALL CREDIT TO NETHUB */}
-          <p className="text-[14px] font-medium leading-[1.6] text-white sm:text-[15px]">
+          <p className="text-[14px] leading-[1.6] font-medium text-white sm:text-[15px]">
             Copyright © 2026{" "}
-            <span className="font-bold text-[#20B2C5]">
-              NetHub
-            </span>
-            . All Rights Reserved. Developed By{" "}
-            <span className="font-bold text-[#20B2C5]">
-              NetHub
-            </span>
-            .
+            <span className="font-bold text-[#20B2C5]">NetHub</span>. All Rights
+            Reserved. Developed By{" "}
+            <span className="font-bold text-[#20B2C5]">NetHub</span>.
           </p>
 
           {/* LEGAL LINKS */}
