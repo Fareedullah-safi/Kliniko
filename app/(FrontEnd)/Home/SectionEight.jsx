@@ -1,0 +1,442 @@
+"use client";
+
+import { fixData } from "@/Lib/fixText";
+import { ArrowLeft, ArrowRight, GlobeIcon, Quote } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+
+const SECTION_EIGHT_STYLES = `
+  .section-eight-rt .rt-inline p,
+  .section-eight-rt .rt-inline h1,
+  .section-eight-rt .rt-inline h2,
+  .section-eight-rt .rt-inline h3,
+  .section-eight-rt .rt-inline h4,
+  .section-eight-rt .rt-inline h5,
+  .section-eight-rt .rt-inline h6 {
+    display: inline;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .section-eight-rt .rt-inline br {
+    display: none;
+  }
+  .section-eight-rt .rt-desc p {
+    margin: 0.35em 0;
+  }
+  .section-eight-rt .rt-desc p:first-child {
+    margin-top: 0;
+  }
+  .section-eight-rt .rt-desc p:last-child {
+    margin-bottom: 0;
+  }
+  .section-eight-rt .rt-tight p {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .section-eight-rt .rt-inline,
+  .section-eight-rt .rt-desc {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+  .section-eight-rt a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .section-eight-rt ul,
+  .section-eight-rt ol {
+    margin: 0.25em 0;
+    padding-left: 1.25em;
+  }
+  .section-eight-rt strong,
+  .section-eight-rt b {
+    font-weight: 700;
+  }
+`;
+
+function stripTags(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/<[^>]*>/g, "").trim();
+}
+
+export default function SectionEight() {
+  const [section, setSection] = useState({
+    badgeText: "",
+    title: "",
+    description: "",
+  });
+
+  const [testimonials, setTestimonials] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getLocalizedText = (value, language = "en") => {
+    if (typeof value === "string") return value;
+
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value[language] || value.en || value.fa || value.ps || "";
+    }
+
+    return "";
+  };
+
+  useEffect(() => {
+    let active = true;
+    let requestId = 0;
+
+    const loadTestimonials = async (language) => {
+      const currentRequestId = ++requestId;
+
+      setIsLoading(true);
+
+      try {
+        const response = await fetch(
+          `/api/homepage/reviews-section?lang=${encodeURIComponent(language)}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load testimonials");
+        }
+
+        const result = await response.json();
+
+        if (!active || currentRequestId !== requestId) {
+          return;
+        }
+
+        if (result.success && result.data) {
+          const data = fixData(result.data);
+
+          if (data.section) {
+            const sectionData = data.section;
+
+            setSection({
+              badgeText: getLocalizedText(sectionData.badgeText, language),
+              title: getLocalizedText(sectionData.title, language),
+              description: getLocalizedText(sectionData.description, language),
+            });
+          } else {
+            setSection({
+              badgeText: "",
+              title: "",
+              description: "",
+            });
+          }
+
+          if (Array.isArray(data.reviews)) {
+            setTestimonials(
+              data.reviews
+                .filter(
+                  (testimonial) =>
+                    testimonial &&
+                    (testimonial.text ||
+                      testimonial.comment ||
+                      testimonial.name),
+                )
+                .map((testimonial, index) => ({
+                  ...testimonial,
+                  _renderKey:
+                    testimonial._id ||
+                    testimonial.id ||
+                    `${index}-${getLocalizedText(testimonial.name, language)}`,
+                  name: getLocalizedText(testimonial.name, language),
+                  role: getLocalizedText(testimonial.role, language),
+                  text: getLocalizedText(
+                    testimonial.text || testimonial.comment,
+                    language,
+                  ),
+                })),
+            );
+          } else {
+            setTestimonials([]);
+          }
+
+          setCurrentSlide(0);
+        } else {
+          setTestimonials([]);
+          setSection({
+            badgeText: "",
+            title: "",
+            description: "",
+          });
+        }
+      } catch (error) {
+        if (active && currentRequestId === requestId) {
+          console.error("Failed to load testimonials:", error);
+          setTestimonials([]);
+        }
+      } finally {
+        if (active && currentRequestId === requestId) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const initialLanguage = localStorage.getItem("site-language") || "en";
+
+    loadTestimonials(initialLanguage);
+
+    const handleLanguageChange = (event) => {
+      const nextLanguage =
+        event.detail?.language || localStorage.getItem("site-language") || "en";
+
+      loadTestimonials(nextLanguage);
+    };
+
+    window.addEventListener("site-language-change", handleLanguageChange);
+
+    return () => {
+      active = false;
+
+      window.removeEventListener("site-language-change", handleLanguageChange);
+    };
+  }, []);
+
+  const slideSets = testimonials.map((_, index) => {
+    const total = testimonials.length;
+
+    return [index % total, (index + 1) % total, (index + 2) % total];
+  });
+
+  const nextSlide = () => {
+    if (slideSets.length === 0) return;
+
+    setCurrentSlide((previous) => (previous + 1) % slideSets.length);
+  };
+
+  const previousSlide = () => {
+    if (slideSets.length === 0) return;
+
+    setCurrentSlide(
+      (previous) => (previous - 1 + slideSets.length) % slideSets.length,
+    );
+  };
+
+  const visibleTestimonials =
+    slideSets.length > 0
+      ? slideSets[currentSlide % slideSets.length].map(
+          (index) => testimonials[index],
+        )
+      : [];
+
+  return (
+    <section className="section-eight-rt relative z-10 -mt-50 w-full bg-[#e8eeee] px-4">
+      <div className="relative min-h-screen overflow-hidden rounded-3xl bg-white">
+        <div className="absolute inset-0 bg-[radial-gradient(#bfdbfe_1px,transparent_1px)] [background-size:16px_16px]" />
+
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-6 py-16 pt-50 sm:px-10 lg:px-16">
+          {/* Heading */}
+          {(section.badgeText || section.title || section.description) && (
+            <div>
+              {section.badgeText && (
+                <span
+                  data-wow-duration="0.8s"
+                  className="wow animate__animated animate__fadeInDown group inline-flex items-center gap-2 border border-cyan-100 bg-[#eef2f2] px-4 py-2 text-sm font-bold tracking-wide text-[#1E8A8A] shadow-sm"
+                >
+                  <GlobeIcon
+                    size={17}
+                    className="transition-transform duration-500 group-hover:rotate-180"
+                  />
+                  <span
+                    className="rt-inline"
+                    dangerouslySetInnerHTML={{ __html: section.badgeText }}
+                  />
+                </span>
+              )}
+
+              <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                {section.title && (
+                  <div
+                    role="heading"
+                    aria-level={1}
+                    data-wow-duration="0.9s"
+                    data-wow-delay="0.1s"
+                    className="wow animate__animated animate__fadeInLeft max-w-3xl text-4xl leading-tight font-medium text-[#102326] sm:text-5xl lg:text-5xl"
+                  >
+                    <span
+                      className="rt-inline rt-tight"
+                      dangerouslySetInnerHTML={{
+                        __html: section.title,
+                      }}
+                    />
+                  </div>
+                )}
+
+                {section.description && (
+                  <div
+                    className="rt-desc max-w-xl text-sm leading-6 text-zinc-600 sm:text-base md:text-lg"
+                    dangerouslySetInnerHTML={{ __html: section.description }}
+                  />
+                )}
+
+                {/* Navigation */}
+                <div
+                  data-wow-duration="0.8s"
+                  data-wow-delay="0.2s"
+                  className="wow animate__animated animate__fadeInRight flex shrink-0 items-center gap-3"
+                >
+                  <button
+                    type="button"
+                    aria-label="Previous testimonials"
+                    onClick={previousSlide}
+                    disabled={isLoading || testimonials.length === 0}
+                    className="group flex h-13 w-13 cursor-pointer items-center justify-center rounded-full border border-[#102326]/10 bg-[#eef2f2] text-[#102326] transition-all duration-300 hover:border-[#1E8A8A] hover:bg-[#1E8A8A] hover:text-white hover:shadow-lg hover:shadow-[#1E8A8A]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ArrowLeft
+                      size={20}
+                      className="transition-transform duration-300 group-hover:-translate-x-1"
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    aria-label="Next testimonials"
+                    onClick={nextSlide}
+                    disabled={isLoading || testimonials.length === 0}
+                    className="group flex h-13 w-13 cursor-pointer items-center justify-center rounded-full bg-[#1E8A8A] text-white transition-all duration-300 hover:-translate-y-1 hover:bg-[#167575] hover:shadow-lg hover:shadow-[#1E8A8A]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ArrowRight
+                      size={20}
+                      className="transition-transform duration-300 group-hover:translate-x-1"
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                data-wow-duration="0.8s"
+                data-wow-delay="0.3s"
+                className="wow animate__animated animate__fadeIn mt-10 h-px w-full bg-[#102326]/10"
+              />
+            </div>
+          )}
+
+          {/* Testimonials */}
+          {isLoading ? (
+            <div className="flex min-h-80 items-center justify-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#1E8A8A]/20 border-t-[#1E8A8A]" />
+            </div>
+          ) : testimonials.length === 0 ? (
+            <div className="py-16 text-center text-sm text-zinc-500">
+              No testimonials available.
+            </div>
+          ) : (
+            <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-3">
+              {visibleTestimonials.map((testimonial, index) => {
+                const plainName = stripTags(testimonial.name) || "Client";
+
+                return (
+                  <div
+                    key={`${testimonial._renderKey}-${index}`}
+                    data-wow-duration="0.8s"
+                    data-wow-delay={`${0.1 + index * 0.12}s`}
+                    className="wow animate__animated animate__fadeInUp group relative flex min-h-80 flex-col justify-between overflow-hidden rounded-3xl border border-[#102326]/8 bg-white/80 p-6 shadow-[0_10px_40px_rgba(16,35,38,0.06)] backdrop-blur-sm transition-all duration-500 hover:-translate-y-2 hover:border-[#1E8A8A]/20 hover:shadow-[0_20px_50px_rgba(16,35,38,0.1)] sm:p-7"
+                  >
+                    {/* Top Accent */}
+                    <div className="absolute top-0 left-0 h-1 w-0 bg-[#1E8A8A] transition-all duration-500 group-hover:w-full" />
+
+                    {/* Soft Glow */}
+                    <div className="pointer-events-none absolute -top-10 -right-10 h-28 w-28 rounded-full bg-[#1E8A8A]/5 blur-2xl transition-all duration-500 group-hover:bg-[#1E8A8A]/10" />
+
+                    {/* Content */}
+                    <div className="relative z-10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#eef2f2]">
+                          <Quote
+                            size={22}
+                            className="text-[#1E8A8A] transition-transform duration-500 group-hover:scale-110"
+                          />
+                        </div>
+
+                        <div className="rounded-full bg-[#eef2f2] px-3 py-1 text-xs tracking-widest text-[#1E8A8A]">
+                          ★★★★★
+                        </div>
+                      </div>
+
+                      {testimonial.text && (
+                        <div
+                          className="rt-desc mt-7 text-sm leading-7 text-zinc-600 sm:text-base"
+                          dangerouslySetInnerHTML={{ __html: testimonial.text }}
+                        />
+                      )}
+                    </div>
+
+                    {/* User */}
+                    <div className="relative z-10 mt-8 flex items-center gap-4 border-t border-[#102326]/8 pt-5">
+                      <div className="relative h-12 w-12 shrink-0">
+                        {testimonial.image ? (
+                          <Image
+                            src={testimonial.image}
+                            alt={plainName}
+                            fill
+                            sizes="48px"
+                            className="rounded-full object-cover ring-4 ring-[#eef2f2] transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#eef2f2] text-lg font-semibold text-[#1E8A8A] ring-4 ring-[#eef2f2]">
+                            {plainName.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+
+                        <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-[#1E8A8A]" />
+                      </div>
+
+                      <div>
+                        {testimonial.name && (
+                          <div
+                            role="heading"
+                            aria-level={2}
+                            className="rt-inline text-sm font-semibold text-[#102326] sm:text-base"
+                            dangerouslySetInnerHTML={{
+                              __html: testimonial.name,
+                            }}
+                          />
+                        )}
+
+                        {testimonial.role && (
+                          <div
+                            className="rt-inline mt-1 text-xs text-zinc-500"
+                            dangerouslySetInnerHTML={{
+                              __html: testimonial.role,
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Slider Indicators */}
+          {!isLoading && slideSets.length > 0 && (
+            <div
+              data-wow-duration="0.8s"
+              data-wow-delay="0.5s"
+              className="wow animate__animated animate__fadeIn mt-8 flex justify-center gap-2"
+            >
+              {slideSets.map((_, index) => (
+                <button
+                  key={`testimonial-slide-${index}`}
+                  type="button"
+                  aria-label={`Go to testimonial slide ${index + 1}`}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    currentSlide === index
+                      ? "w-8 bg-[#1E8A8A]"
+                      : "w-2 bg-[#1E8A8A]/20"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: SECTION_EIGHT_STYLES }} />
+    </section>
+  );
+}

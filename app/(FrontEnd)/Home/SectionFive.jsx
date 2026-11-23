@@ -1,0 +1,403 @@
+"use client";
+
+import { fixData } from "@/Lib/fixText";
+import { ArrowLeft, ArrowRight, Box } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
+
+const SECTION_FIVE_STYLES = `
+  .rt-inline p { display: inline; margin: 0; }
+  .rt-desc p { margin: 0 0 0.5em 0; }
+  .rt-desc p:last-child { margin-bottom: 0; }
+  .rt-desc strong, .rt-desc b { font-weight: 700; color: inherit; }
+  .rt-desc em, .rt-desc i { font-style: italic; }
+  .rt-desc a { color: #1E8A8A; text-decoration: underline; text-underline-offset: 2px; }
+  .rt-desc ul, .rt-desc ol { margin: 0.4em 0; padding-inline-start: 1.2em; }
+  .rt-desc li { margin-bottom: 0.2em; }
+  .rt-tight p { margin: 0 !important; padding: 0 !important; }
+  .rt-inline strong, .rt-inline b { font-weight: 700; color: #1E8A8A; }
+  .rt-inline, .rt-desc, .rt-tight {
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+`;
+
+export default function SectionFive() {
+  const [current, setCurrent] = useState(0);
+  const [animate, setAnimate] = useState(true);
+
+  const [badge, setBadge] = useState("");
+  const [title, setTitle] = useState("");
+  const [solutions, setSolutions] = useState([]);
+  const [language, setLanguage] = useState("en");
+
+  const isRTL = language === "fa" || language === "ps";
+
+  // Get localized text
+  const getLocalizedText = (value, selectedLanguage = language) => {
+    if (typeof value === "string") return value;
+
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value[selectedLanguage] || value.en || value.fa || value.ps || "";
+    }
+
+    return "";
+  };
+
+  // Load services and handle language changes
+  useEffect(() => {
+    let active = true;
+    let requestId = 0;
+
+    const loadData = async (selectedLanguage) => {
+      const currentRequestId = ++requestId;
+
+      try {
+        const res = await fetch(
+          `/api/homepage/services?lang=${encodeURIComponent(selectedLanguage)}`,
+          { cache: "no-store" },
+        );
+
+        const result = await res.json();
+
+        if (
+          !active ||
+          currentRequestId !== requestId ||
+          !res.ok ||
+          !result.success ||
+          !result.data
+        ) {
+          if (active && !res.ok) {
+            console.error("Failed to load services:", res.status);
+          }
+
+          return;
+        }
+
+        const cleanData = fixData(result.data);
+
+        setBadge(getLocalizedText(cleanData.badge, selectedLanguage));
+        setTitle(getLocalizedText(cleanData.title, selectedLanguage));
+
+        setSolutions(
+          (Array.isArray(cleanData.solutions) ? cleanData.solutions : [])
+            .filter(
+              (solution) =>
+                solution?.image &&
+                getLocalizedText(solution?.title, selectedLanguage),
+            )
+            .map((solution) => ({
+              ...solution,
+              title: getLocalizedText(solution.title, selectedLanguage),
+              description: getLocalizedText(
+                solution.description,
+                selectedLanguage,
+              ),
+            })),
+        );
+
+        setCurrent(0);
+        setAnimate(true);
+      } catch (error) {
+        if (active) {
+          console.error("Error loading services:", error);
+        }
+      }
+    };
+
+    let initialLanguage = "en";
+
+    try {
+      initialLanguage = localStorage.getItem("site-language") || "en";
+    } catch {
+      // Use English if localStorage is unavailable.
+    }
+
+    if (!["en", "fa", "ps"].includes(initialLanguage)) {
+      initialLanguage = "en";
+    }
+
+    setLanguage(initialLanguage);
+    loadData(initialLanguage);
+
+    const handleLanguageChange = (event) => {
+      let storedLanguage = "en";
+
+      try {
+        storedLanguage = localStorage.getItem("site-language") || "en";
+      } catch {
+        // Use English if localStorage is unavailable.
+      }
+
+      const nextLanguage = event.detail?.language || storedLanguage;
+
+      const validLanguage = ["en", "fa", "ps"].includes(nextLanguage)
+        ? nextLanguage
+        : "en";
+
+      setLanguage(validLanguage);
+      loadData(validLanguage);
+    };
+
+    window.addEventListener("site-language-change", handleLanguageChange);
+
+    return () => {
+      active = false;
+      window.removeEventListener("site-language-change", handleLanguageChange);
+    };
+  }, []);
+
+  const sliderItems =
+    solutions.length > 1 ? [...solutions, ...solutions] : solutions;
+
+  // Next slide
+  const nextSlide = () => {
+    if (solutions.length <= 1) return;
+
+    setAnimate(true);
+    setCurrent((prev) => prev + 1);
+  };
+
+  // Previous slide
+  const prevSlide = () => {
+    if (solutions.length <= 1) return;
+
+    if (current === 0) {
+      setAnimate(false);
+      setCurrent(solutions.length);
+
+      setTimeout(() => {
+        setAnimate(true);
+        setCurrent(solutions.length - 1);
+      }, 50);
+    } else {
+      setAnimate(true);
+      setCurrent((prev) => prev - 1);
+    }
+  };
+
+  // Automatic slider
+  useEffect(() => {
+    if (solutions.length <= 1) return;
+
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [solutions.length]);
+
+  // Infinite slider reset
+  useEffect(() => {
+    if (solutions.length > 0 && current === solutions.length) {
+      const timeout = setTimeout(() => {
+        setAnimate(false);
+        setCurrent(0);
+
+        setTimeout(() => {
+          setAnimate(true);
+        }, 50);
+      }, 700);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [current, solutions.length]);
+
+  return (
+    <main dir={isRTL ? "rtl" : "ltr"} className="w-full px-3 sm:px-4">
+      <style dangerouslySetInnerHTML={{ __html: SECTION_FIVE_STYLES }} />
+      <section
+        dir={isRTL ? "rtl" : "ltr"}
+        className="relative min-h-screen w-full overflow-hidden rounded-2xl bg-slate-950"
+      >
+        {/* Grid Background */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#10b98133_1px,transparent_1px),linear-gradient(to_bottom,#10b98133_1px,transparent_1px)] mask-[radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] bg-size-[14px_24px]" />
+
+        {/* Soft Glow */}
+        <div className="absolute top-0 left-1/2 h-100 w-100 -translate-x-1/2 rounded-full bg-[#1E8A8A]/10 blur-3xl" />
+
+        <div className="relative z-10 px-4 py-16 sm:px-6 sm:py-20 lg:px-10 lg:py-24">
+          {/* Badge */}
+          {badge && (
+            <div className="flex justify-center">
+              <span
+                dir={isRTL ? "rtl" : "ltr"}
+                className="wow animate__animated animate__fadeInDown group inline-flex items-center gap-2 rounded-full border border-white/20 bg-zinc-900 px-3 py-1.5 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-[#1E8A8A]/50 hover:bg-cyan-950 sm:px-4"
+                data-wow-duration="0.8s"
+              >
+                <Box
+                  size={16}
+                  className="text-[#1E8A8A] transition-transform duration-500 group-hover:rotate-180"
+                />
+
+                <span
+                  className="rt-inline rt-tight text-xs font-semibold tracking-wide text-zinc-200"
+                  dangerouslySetInnerHTML={{ __html: badge }}
+                />
+              </span>
+            </div>
+          )}
+
+          {/* Heading */}
+          {title && (
+            <div
+              role="heading"
+              aria-level={1}
+              dir={isRTL ? "rtl" : "ltr"}
+              className="rt-inline rt-tight wow animate__animated animate__fadeInUp mx-auto mt-5 max-w-3xl text-center text-3xl leading-tight font-medium text-zinc-200 sm:text-4xl md:text-5xl lg:text-[50px]"
+              data-wow-duration="1s"
+              data-wow-delay="0.2s"
+              dangerouslySetInnerHTML={{ __html: title }}
+            />
+          )}
+
+          {/* Slider */}
+          {sliderItems.length > 0 && (
+            <div
+              dir="ltr"
+              className="mx-auto mt-10 max-w-7xl overflow-hidden sm:mt-14"
+            >
+              <div
+                dir="ltr"
+                className={`flex ${
+                  animate ? "transition-transform duration-700 ease-in-out" : ""
+                }`}
+                style={{
+                  direction: "ltr",
+                  transform: `translateX(-${
+                    current *
+                    (typeof window !== "undefined" && window.innerWidth < 1024
+                      ? 100
+                      : 100 / 3)
+                  }%)`,
+                  willChange: "transform",
+                }}
+              >
+                {sliderItems.map((solution, index) => (
+                  <div
+                    key={`${solution._id || solution.title}-${index}`}
+                    dir={isRTL ? "rtl" : "ltr"}
+                    className="w-full shrink-0 px-2 lg:w-1/3"
+                  >
+                    {/* Card */}
+                    <div
+                      dir={isRTL ? "rtl" : "ltr"}
+                      className="wow animate__animated animate__fadeInUp group relative h-105 overflow-hidden rounded-2xl border border-white/10 bg-[#102326] shadow-lg transition-all duration-500 hover:-translate-y-2 hover:border-[#1E8A8A]/40 hover:shadow-2xl hover:shadow-[#1E8A8A]/10"
+                      data-wow-duration="0.8s"
+                      data-wow-delay={`${0.1 + (index % 3) * 0.15}s`}
+                    >
+                      {/* Image */}
+                      <Image
+                        src={solution.image}
+                        alt={
+                          solution.title
+                            ? solution.title.replace(/<[^>]*>?/gm, "")
+                            : "Service"
+                        }
+                        fill
+                        sizes="(max-width: 1023px) calc(100vw - 40px), (max-width: 1280px) 33vw, 400px"
+                        className="scale-105 object-cover opacity-100 transition-all duration-700 group-hover:scale-110 lg:opacity-0 lg:group-hover:opacity-100"
+                      />
+
+                      {/* Dark Overlay */}
+                      <div className="absolute inset-0 bg-linear-to-t from-[#071719] via-[#071719]/70 to-[#071719]/20 opacity-100 transition-opacity duration-700 lg:opacity-0 lg:group-hover:opacity-100" />
+
+                      {/* Content */}
+                      <div className="absolute right-0 bottom-0 left-0 z-10 p-5 sm:p-6">
+                        {/* Number */}
+                        <span className="text-sm font-semibold text-[#1E8A8A] transition-colors duration-300 group-hover:text-white">
+                          {String((index % solutions.length) + 1).padStart(
+                            2,
+                            "0",
+                          )}
+                        </span>
+
+                        {/* Title */}
+                        <div
+                          role="heading"
+                          aria-level={2}
+                          dir={isRTL ? "rtl" : "ltr"}
+                          className="rt-inline rt-tight mt-2 block max-w-75 text-xl leading-7 font-semibold text-white transition-transform duration-500 group-hover:-translate-y-1 sm:text-2xl"
+                          dangerouslySetInnerHTML={{ __html: solution.title }}
+                        />
+
+                        {/* Description and Learn More */}
+                        <div className="max-h-48 overflow-hidden opacity-100 transition-all duration-500 lg:max-h-0 lg:opacity-0 lg:group-hover:max-h-48 lg:group-hover:opacity-100">
+                          {solution.description && (
+                            <div
+                              dir={isRTL ? "rtl" : "ltr"}
+                              className="rt-desc mt-4 text-sm leading-6 text-zinc-300"
+                              dangerouslySetInnerHTML={{
+                                __html: solution.description,
+                              }}
+                            />
+                          )}
+
+                          <button
+                            type="button"
+                            dir={isRTL ? "rtl" : "ltr"}
+                            className="group/button mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white"
+                          >
+                            <span className="overflow-hidden leading-none">
+                              <span className="block text-lg transition-transform duration-400 ease-in-out [text-shadow:0_30px_0_currentColor] group-hover/button:-translate-y-7.5">
+                                Learn More
+                              </span>
+                            </span>
+
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1E8A8A]">
+                              <ArrowRight
+                                size={16}
+                                className="-rotate-45 text-white transition-transform duration-300 group-hover/button:rotate-0"
+                              />
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Hover Glow */}
+                      <div className="pointer-events-none absolute inset-0 bg-[#1E8A8A]/0 transition-all duration-500 group-hover:bg-[#1E8A8A]/10" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Controls */}
+          {solutions.length > 1 && (
+            <div
+              dir="ltr"
+              className="wow animate__animated animate__fadeInUp mt-8 flex justify-center gap-3"
+              data-wow-duration="0.8s"
+              data-wow-delay="0.6s"
+            >
+              <button
+                type="button"
+                onClick={prevSlide}
+                aria-label="Previous solution"
+                className="group flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition-all duration-300 hover:border-[#1E8A8A] hover:bg-[#1E8A8A] sm:h-12 sm:w-12"
+              >
+                <ArrowLeft
+                  size={18}
+                  className="transition-transform duration-300 group-hover:-translate-x-1"
+                />
+              </button>
+
+              <button
+                type="button"
+                onClick={nextSlide}
+                aria-label="Next solution"
+                className="group flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-white/5 text-white backdrop-blur-sm transition-all duration-300 hover:border-[#1E8A8A] hover:bg-[#1E8A8A] sm:h-12 sm:w-12"
+              >
+                <ArrowRight
+                  size={18}
+                  className="transition-transform duration-300 group-hover:translate-x-1"
+                />
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
