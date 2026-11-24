@@ -639,7 +639,7 @@ export default function KlinikoBlogNews({ data = {}, cards = [] }) {
           />
         </motion.div>
 
-        {/* THREE-COLUMN BLOG GRID */}
+        {/* THREE-COLUMN BLOG GRID  */}
         <div className="mt-[54px] grid grid-cols-1 items-stretch gap-[30px] sm:mt-[57px] sm:grid-cols-2 lg:mt-[53px] lg:grid-cols-3">
           {posts.map((post, index) => (
             <BlogCard key={post.id} post={post} index={index} />
