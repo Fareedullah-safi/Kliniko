@@ -9,7 +9,12 @@ import {
   useTransform,
 } from "motion/react";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import sanitizeHtml from "sanitize-html";
+
+// ==========================================
+// DEFAULT DATA
+// ==========================================
 
 const DOCTOR_IMAGE =
   "https://html.vecurosoft.com/kliniko/demo/assets/img/bg/chose-h1-img.jpg";
@@ -35,22 +40,108 @@ const FEATURES = [
   },
 ];
 
-// Replace these example figures with verified clinic statistics.
 const STATS = [
-  { target: 310, suffix: "+", label: "Expert Doctor" },
-  { target: 90, suffix: "%", label: "Patient Satisfaction" },
-  {
-    target: 3000,
-    suffix: "+",
-    compact: true,
-    label: "Successful Operation",
-  },
-  { target: 10, suffix: "+", label: "Health Award" },
+  { display: "310+", label: "Expert Doctor" },
+  { display: "90%", label: "Patient Satisfaction" },
+  { display: "3k+", label: "Successful Operation" },
+  { display: "10+", label: "Health Award" },
 ];
 
-// ======================================
-// HYDRATION-SAFE REDUCED MOTION
-// ======================================
+// ==========================================
+// RICH TEXT — SAFE INLINE HTML
+// ==========================================
+
+function rich(html = "") {
+  if (typeof html !== "string") return "";
+
+  const value = html
+    .replace(/&(?:nbsp|#160|#xA0);/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200b-\u200d\ufeff]/g, "")
+    .replace(/<p\b[^>]*>\s*<br\s*\/?>\s*<\/p>/gi, "")
+    .replace(/<p\b[^>]*>\s*<\/p>/gi, "")
+    .replace(/<\/(?:p|div|h[1-6])>\s*<(?:p|div|h[1-6])\b[^>]*>/gi, "<br>");
+
+  return sanitizeHtml(value, {
+    allowedTags: ["strong", "b", "em", "i", "u", "s", "span", "br"],
+    allowedAttributes: {
+      span: ["style"],
+    },
+    allowedStyles: {
+      span: {
+        color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+        "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+      },
+    },
+  }).trim();
+}
+
+// ==========================================
+// SAFE CLOUDINARY IMAGE
+// ==========================================
+
+function safeImage(value, fallback = "") {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  const src = value.trim();
+
+  if (src.startsWith("/") && !src.startsWith("//") && !/[\\\s]/.test(src)) {
+    return src;
+  }
+
+  try {
+    const url = new URL(src);
+
+    if (url.protocol === "https:" && !url.username && !url.password) {
+      return src;
+    }
+  } catch {}
+
+  return fallback;
+}
+
+// ==========================================
+// DYNAMIC STATISTIC VALUES
+// 310+, 90%, 3k+, etc.
+// ==========================================
+
+function makeStat(title, value, fallback) {
+  const display =
+    typeof value === "string" && value.trim() ? value.trim() : fallback.display;
+
+  const match = display
+    .replace(/,/g, "")
+    .match(/^(\d+(?:\.\d+)?)\s*([kKmM]?)(.*)$/);
+
+  if (!match) {
+    return {
+      label: title?.trim() || fallback.label,
+      display,
+      target: 0,
+      suffix: "",
+    };
+  }
+
+  const factor =
+    match[2].toLowerCase() === "k"
+      ? 1000
+      : match[2].toLowerCase() === "m"
+        ? 1000000
+        : 1;
+
+  return {
+    label: title?.trim() || fallback.label,
+    display,
+    target: Number(match[1]) * factor,
+    suffix: match[3],
+  };
+}
+
+// ==========================================
+// REDUCED MOTION
+// ==========================================
 
 function useSafeReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -59,7 +150,6 @@ function useSafeReducedMotion() {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const update = () => setReduced(query.matches);
-
     update();
 
     query.addEventListener("change", update);
@@ -72,9 +162,9 @@ function useSafeReducedMotion() {
   return reduced;
 }
 
-// ======================================
+// ==========================================
 // SECTION ICON
-// ======================================
+// ==========================================
 
 function SectionIcon() {
   return (
@@ -111,9 +201,9 @@ function SectionIcon() {
   );
 }
 
-// ======================================
+// ==========================================
 // MOLECULAR BACKGROUND
-// ======================================
+// ==========================================
 
 const MOLECULES = [
   [15, 80, 8],
@@ -209,28 +299,17 @@ function MoleculePattern({ className = "", reduced = false, reverse = false }) {
   );
 }
 
-// ======================================
-// SHARED ANIMATION SETTINGS
-// ======================================
-
-const REVEAL = {
-  opacity: 0,
-  y: 26,
-};
-
-const SHOWN = {
-  opacity: 1,
-  y: 0,
-};
+const REVEAL = { opacity: 0, y: 26 };
+const SHOWN = { opacity: 1, y: 0 };
 
 const REVEAL_TRANSITION = {
   duration: 0.7,
   ease: [0.22, 1, 0.36, 1],
 };
 
-// ======================================
-// ANIMATED FEATURE CARDS
-// ======================================
+// ==========================================
+// FEATURE CARD
+// ==========================================
 
 function FeatureCard({
   feature,
@@ -241,7 +320,8 @@ function FeatureCard({
 }) {
   const Icon = feature.icon;
 
-  // First card is highlighted by default.
+  const [iconError, setIconError] = useState(false);
+
   const highlighted = (hoveredIndex ?? 0) === index;
   const hovered = hoveredIndex === index;
 
@@ -250,18 +330,8 @@ function FeatureCard({
       tabIndex={0}
       initial={REVEAL}
       whileInView={SHOWN}
-      viewport={{
-        once: true,
-        amount: 0.15,
-      }}
-      whileHover={
-        reduced
-          ? undefined
-          : {
-              y: -5,
-              scale: 1.01,
-            }
-      }
+      viewport={{ once: true, amount: 0.15 }}
+      whileHover={reduced ? undefined : { y: -5, scale: 1.01 }}
       onMouseEnter={() => setHoveredIndex(index)}
       onMouseLeave={() => setHoveredIndex(null)}
       onFocus={() => setHoveredIndex(index)}
@@ -279,20 +349,16 @@ function FeatureCard({
       }}
       className="group relative isolate flex min-h-[148px] items-center gap-4 overflow-hidden rounded-[18px] border bg-[#143b65] px-5 py-5 text-white outline-none focus-visible:ring-2 focus-visible:ring-white sm:gap-5 sm:px-6 xl:min-h-[175px] xl:gap-7 xl:px-7"
     >
-      {/* ANIMATED GRADIENT BACKGROUND */}
+      {/* ANIMATED GRADIENT */}
       <motion.div
         aria-hidden="true"
         initial={false}
-        animate={{
-          opacity: highlighted ? 1 : 0,
-        }}
-        transition={{
-          duration: reduced ? 0 : 0.42,
-        }}
+        animate={{ opacity: highlighted ? 1 : 0 }}
+        transition={{ duration: reduced ? 0 : 0.42 }}
         className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#6054e9] via-[#397cd4] to-[#129cb2]"
       />
 
-      {/* SHIMMER EFFECT */}
+      {/* SHIMMER */}
       <motion.div
         aria-hidden="true"
         initial={false}
@@ -300,21 +366,17 @@ function FeatureCard({
           x: hovered && !reduced ? "130%" : "-130%",
           opacity: hovered ? 0.2 : 0,
         }}
-        transition={{
-          duration: reduced ? 0 : 0.65,
-        }}
+        transition={{ duration: reduced ? 0 : 0.65 }}
         className="pointer-events-none absolute inset-y-0 left-0 w-[45%] skew-x-[-22deg] bg-white/20 blur-xl"
       />
 
-      {/* ICON BACKGROUND */}
+      {/* FEATURE ICON */}
       <motion.div
         initial={false}
         animate={{
           backgroundColor: highlighted ? "#101e50" : "#159db5",
         }}
-        transition={{
-          duration: 0.36,
-        }}
+        transition={{ duration: 0.36 }}
         className="flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-[17px] sm:h-[86px] sm:w-[86px] xl:h-[108px] xl:w-[108px]"
       >
         <motion.div
@@ -329,27 +391,42 @@ function FeatureCard({
             damping: 17,
           }}
         >
-          <Icon
-            aria-hidden="true"
-            strokeWidth={2}
-            className="h-9 w-9 sm:h-11 sm:w-11 xl:h-14 xl:w-14"
-          />
+          {feature.iconImage && !iconError ? (
+            <Image
+              src={feature.iconImage}
+              alt=""
+              width={56}
+              height={56}
+              unoptimized
+              onError={() => setIconError(true)}
+              className="h-9 w-9 object-contain brightness-0 invert sm:h-11 sm:w-11 xl:h-14 xl:w-14"
+            />
+          ) : (
+            <Icon
+              aria-hidden="true"
+              strokeWidth={2}
+              className="h-9 w-9 sm:h-11 sm:w-11 xl:h-14 xl:w-14"
+            />
+          )}
         </motion.div>
       </motion.div>
 
-      {/* CARD TEXT */}
+      {/* FEATURE CONTENT */}
       <div className="min-w-0 flex-1">
-        {/* TITLE WITH DOCTOR-STYLE UNDERLINE */}
         <motion.div
           initial="idle"
           animate={hovered ? "hover" : "idle"}
           className="relative inline-block max-w-full"
         >
           <h3 className="text-[18px] leading-[1.3] font-bold tracking-[-0.015em] text-white sm:text-[22px] xl:text-[27px]">
-            {feature.title}
+            <span
+              dangerouslySetInnerHTML={{
+                __html: feature.title,
+              }}
+            />
           </h3>
 
-          {/* ONE ANIMATED UNDERLINE */}
+          {/* ORIGINAL ANIMATED UNDERLINE */}
           <motion.span
             aria-hidden="true"
             initial={false}
@@ -365,48 +442,45 @@ function FeatureCard({
           />
         </motion.div>
 
-        {/* DESCRIPTION */}
         <p className="mt-3 text-[13px] leading-[1.6] font-medium text-[#eff6fd] sm:text-[15px] xl:text-[17px]">
-          {feature.description}
+          <span
+            dangerouslySetInnerHTML={{
+              __html: feature.description,
+            }}
+          />
         </p>
       </div>
     </motion.article>
   );
 }
 
-// ======================================
-// NUMBER COUNT-UP ANIMATION
-// ======================================
+// ==========================================
+// ANIMATED COUNTER
+// ==========================================
 
-function CountUp({ target, suffix, compact, inView }) {
+function CountUp({ target, suffix, display, inView }) {
   const count = useMotionValue(0);
 
-  // Automatically update the text without
-  // re-rendering the React component every frame.
   const text = useTransform(count, (value) => {
     const rounded = Math.max(0, Math.min(target, Math.floor(value)));
 
-    if (compact && rounded === target) {
-      return "3k+";
+    if (rounded >= target) {
+      return display;
     }
 
     return `${rounded.toLocaleString("en-US")}${suffix}`;
   });
 
   useEffect(() => {
-    // RESET TO ZERO
     count.set(0);
 
     if (!inView) return;
 
-    // COUNT FROM ZERO TO THE TARGET
     const controls = animate(count, target, {
       duration: 2.8,
       ease: "linear",
     });
 
-    // Stop animation when leaving viewport
-    // so it can restart on the next entry.
     return () => controls.stop();
   }, [inView, target, count]);
 
@@ -420,15 +494,13 @@ function CountUp({ target, suffix, compact, inView }) {
   );
 }
 
-// ======================================
-// ANIMATED STATISTICS
-// ======================================
+// ==========================================
+// FOUR ANIMATED STATISTICS
+// ==========================================
 
-function Statistics({ reduced }) {
+function Statistics({ stats, reduced }) {
   const statsRef = useRef(null);
 
-  // The value changes every time the
-  // statistics section enters or leaves view.
   const inView = useInView(statsRef, {
     amount: 0.3,
     once: false,
@@ -437,18 +509,9 @@ function Statistics({ reduced }) {
   return (
     <motion.div
       ref={statsRef}
-      initial={{
-        opacity: 0,
-        y: 35,
-      }}
-      whileInView={{
-        opacity: 1,
-        y: 0,
-      }}
-      viewport={{
-        once: true,
-        amount: 0.15,
-      }}
+      initial={{ opacity: 0, y: 35 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
       transition={REVEAL_TRANSITION}
       className="relative mx-auto w-full max-w-[1160px] overflow-hidden rounded-[14px] bg-[#159db5] p-3 shadow-[0_15px_42px_rgba(0,61,91,0.18)] sm:p-4 lg:p-6"
     >
@@ -456,13 +519,7 @@ function Statistics({ reduced }) {
       <motion.div
         aria-hidden="true"
         initial={false}
-        animate={
-          reduced
-            ? { opacity: 0.45 }
-            : {
-                opacity: [0.45, 0.85, 0.45],
-              }
-        }
+        animate={reduced ? { opacity: 0.45 } : { opacity: [0.45, 0.85, 0.45] }}
         transition={{
           duration: 7,
           repeat: reduced ? 0 : Infinity,
@@ -471,7 +528,7 @@ function Statistics({ reduced }) {
         className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#6657ed]/50 via-[#27b7ce]/50 to-[#078ba6]/50"
       />
 
-      {/* BACKGROUND DOT PATTERN */}
+      {/* DOT PATTERN */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 opacity-20"
@@ -482,23 +539,14 @@ function Statistics({ reduced }) {
         }}
       />
 
-      {/* FOUR STATISTICS */}
+      {/* STATISTIC CARDS */}
       <div className="relative grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-5">
-        {STATS.map((stat) => (
+        {stats.map((stat, index) => (
           <motion.div
-            key={stat.label}
+            key={index}
             role="group"
-            aria-label={`${
-              stat.compact ? "3k+" : `${stat.target}${stat.suffix}`
-            } ${stat.label}`}
-            whileHover={
-              reduced
-                ? undefined
-                : {
-                    y: -5,
-                    scale: 1.035,
-                  }
-            }
+            aria-label={`${stat.display} ${stat.label}`}
+            whileHover={reduced ? undefined : { y: -5, scale: 1.035 }}
             transition={{
               type: "spring",
               stiffness: 250,
@@ -509,7 +557,7 @@ function Statistics({ reduced }) {
             <CountUp
               target={stat.target}
               suffix={stat.suffix}
-              compact={stat.compact}
+              display={stat.display}
               inView={inView}
             />
 
@@ -526,14 +574,74 @@ function Statistics({ reduced }) {
   );
 }
 
-// ======================================
-// MAIN COMPONENT
-// ======================================
+// ==========================================
+// MAIN COMPONENT — MONGODB CONNECTED
+// ==========================================
 
-export default function KlinikoWhyChoose() {
+export default function KlinikoWhyChoose({ data = {}, cards = [] }) {
   const reduced = useSafeReducedMotion();
 
   const [hoveredIndex, setHoveredIndex] = useState(null);
+
+  // SECTION CONTENT
+  const badge = rich(data?.badge?.en || "Why Choose Us");
+
+  const title = rich(
+    data?.title?.en || "Trusted Healthcare Backed by Expertise & Compassion",
+  );
+
+  const description = rich(
+    data?.description?.en ||
+      "At Kliniko, we combine advanced medical practices with patient-focused care to ensure every individual receives safe, reliable, and comfortable treatment from start to finish.",
+  );
+
+  // DYNAMIC DOCTOR IMAGE
+  const doctorImage = safeImage(data?.image, DOCTOR_IMAGE);
+
+  // DYNAMIC FEATURE CARDS
+  const features = useMemo(() => {
+    const saved = Array.isArray(cards)
+      ? cards.filter((card) => card && typeof card === "object")
+      : [];
+
+    if (!saved.length) {
+      return FEATURES.map((feature) => ({
+        ...feature,
+        title: rich(feature.title),
+        description: rich(feature.description),
+        iconImage: "",
+      }));
+    }
+
+    return saved.map((card, index) => {
+      const fallback = FEATURES[index % FEATURES.length];
+
+      return {
+        id: card.id || `feature-${index}`,
+        icon: fallback.icon,
+        iconImage: safeImage(card.icon),
+
+        title: rich(card.title?.en || fallback.title),
+
+        description: rich(card.description?.en || fallback.description),
+      };
+    });
+  }, [cards]);
+
+  // DYNAMIC STATISTICS
+  const stats = useMemo(
+    () =>
+      STATS.map((fallback, index) => {
+        const number = index + 1;
+
+        return makeStat(
+          data?.[`stat${number}Title`],
+          data?.[`stat${number}Value`],
+          fallback,
+        );
+      }),
+    [data],
+  );
 
   return (
     <section
@@ -558,7 +666,6 @@ export default function KlinikoWhyChoose() {
             className="absolute -bottom-[15%] left-[20%] h-[450px] w-[700px] rotate-180"
           />
 
-          {/* MOVING GLOW */}
           <motion.div
             initial={false}
             animate={
@@ -578,21 +685,16 @@ export default function KlinikoWhyChoose() {
           />
         </div>
 
-        {/* RIGHT DOCTOR IMAGE — DESKTOP */}
+        {/* DESKTOP DOCTOR IMAGE */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
-          viewport={{
-            once: true,
-            amount: 0.1,
-          }}
-          transition={{
-            duration: 1.1,
-          }}
+          viewport={{ once: true, amount: 0.1 }}
+          transition={{ duration: 1.1 }}
           className="pointer-events-none absolute inset-y-0 right-0 z-[1] hidden w-[37%] overflow-hidden lg:block"
         >
           <Image
-            src={DOCTOR_IMAGE}
+            src={doctorImage}
             alt="Medical professional working in a clinical laboratory"
             fill
             unoptimized
@@ -603,34 +705,26 @@ export default function KlinikoWhyChoose() {
           <div className="absolute inset-0 bg-[#071632]/10" />
         </motion.div>
 
-        {/* SAME CONTAINER AS HERO */}
+        {/* MAIN CONTAINER */}
         <div className="relative z-10 mx-auto w-full max-w-[1540px] px-6 sm:px-10 lg:px-12 2xl:px-6">
           {/* LEFT CONTENT */}
           <div className="w-full py-16 sm:py-20 lg:w-[61%] lg:pt-[110px] lg:pb-[170px] xl:pt-[135px] xl:pb-[185px]">
-            {/* LABEL */}
+            {/* SECTION BADGE */}
             <motion.div
-              initial={{
-                opacity: 0,
-                x: -24,
-              }}
-              whileInView={{
-                opacity: 1,
-                x: 0,
-              }}
-              viewport={{
-                once: true,
-                amount: 0.3,
-              }}
-              transition={{
-                duration: 0.65,
-              }}
+              initial={{ opacity: 0, x: -24 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.65 }}
               className="flex items-center gap-4"
             >
               <SectionIcon />
 
-              <span className="text-[19px] font-semibold text-white sm:text-[23px] lg:text-[26px]">
-                Why Choose Us
-              </span>
+              <span
+                className="text-[19px] font-semibold text-white sm:text-[23px] lg:text-[26px]"
+                dangerouslySetInnerHTML={{
+                  __html: badge,
+                }}
+              />
             </motion.div>
 
             {/* MAIN HEADING */}
@@ -638,40 +732,34 @@ export default function KlinikoWhyChoose() {
               id="kliniko-why-heading"
               initial={REVEAL}
               whileInView={SHOWN}
-              viewport={{
-                once: true,
-                amount: 0.2,
-              }}
+              viewport={{ once: true, amount: 0.2 }}
               transition={REVEAL_TRANSITION}
               className="mt-9 text-[clamp(2.2rem,3.5vw,4rem)] leading-[1.18] font-bold tracking-[-0.025em] text-white"
-            >
-              Trusted Healthcare Backed by Expertise &amp; Compassion
-            </motion.h2>
+              dangerouslySetInnerHTML={{
+                __html: title,
+              }}
+            />
 
             {/* DESCRIPTION */}
             <motion.p
               initial={REVEAL}
               whileInView={SHOWN}
-              viewport={{
-                once: true,
-                amount: 0.2,
-              }}
+              viewport={{ once: true, amount: 0.2 }}
               transition={{
                 ...REVEAL_TRANSITION,
                 delay: 0.12,
               }}
               className="mt-9 max-w-[900px] text-[16px] leading-[1.8] font-medium text-[#eaf1fa] sm:text-[18px] lg:mt-12 lg:text-[19px] xl:text-[21px]"
-            >
-              At Kliniko, we combine advanced medical practices with
-              patient-focused care to ensure every individual receives safe,
-              reliable, and comfortable treatment from start to finish.
-            </motion.p>
+              dangerouslySetInnerHTML={{
+                __html: description,
+              }}
+            />
 
             {/* FEATURE CARDS */}
             <div className="mt-10 flex flex-col gap-5 lg:mt-12 lg:gap-6">
-              {FEATURES.map((feature, index) => (
+              {features.map((feature, index) => (
                 <FeatureCard
-                  key={feature.title}
+                  key={feature.id || index}
                   feature={feature}
                   index={index}
                   hoveredIndex={hoveredIndex}
@@ -683,27 +771,16 @@ export default function KlinikoWhyChoose() {
           </div>
         </div>
 
-        {/* MOBILE / TABLET DOCTOR IMAGE */}
+        {/* MOBILE / TABLET IMAGE */}
         <motion.div
-          initial={{
-            opacity: 0,
-            y: 20,
-          }}
-          whileInView={{
-            opacity: 1,
-            y: 0,
-          }}
-          viewport={{
-            once: true,
-            amount: 0.1,
-          }}
-          transition={{
-            duration: 0.8,
-          }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.1 }}
+          transition={{ duration: 0.8 }}
           className="relative z-[1] h-[350px] w-full overflow-hidden sm:h-[460px] lg:hidden"
         >
           <Image
-            src={DOCTOR_IMAGE}
+            src={doctorImage}
             alt="Medical professional working in a clinical laboratory"
             fill
             unoptimized
@@ -715,7 +792,7 @@ export default function KlinikoWhyChoose() {
 
       {/* ANIMATED OVERLAPPING STATISTICS */}
       <div className="relative z-20 mx-auto -mt-10 w-full max-w-[1540px] px-6 sm:-mt-12 sm:px-10 lg:-mt-[75px] lg:px-12 2xl:px-6">
-        <Statistics reduced={reduced} />
+        <Statistics stats={stats} reduced={reduced} />
       </div>
     </section>
   );

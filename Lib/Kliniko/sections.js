@@ -1,265 +1,385 @@
-const rich = (key, label) => ({
+/*
+ =============================================
+ KLINIKO CMS - SECTION CONFIGURATION
+ =============================================
+
+ Total sections: 11
+
+ Rules:
+ - RichTextEditor for display text.
+ - Regular inputs for structured values.
+ - Cloudinary widget for images.
+ - English is required where specified.
+ - Dari is optional and hidden for now.
+
+ This configuration is shared by:
+ - Admin editor
+ - Server-side validation
+ - Dynamic API
+*/
+
+// =============================================
+// FIELD HELPERS
+// =============================================
+
+// Rich text field.
+// Use required = false for optional text.
+const rich = (key, label, required = true) => ({
   key,
   label,
   type: "rich",
+  required,
 });
 
-const input = (key, label, type = "plain") => ({
+// Structured input.
+// Used for URLs, icons, dates, numbers,
+// phone numbers, and email addresses.
+const text = (key, label, type = "text") => ({
   key,
   label,
   type,
+  required: false,
 });
 
-// ==========================================
-// ONLY ENGLISH AND DARI
-// ==========================================
+// Cloudinary image field.
+// The editor stores both URL and publicId.
+const image = (key, label) => ({
+  key,
+  label,
+  type: "image",
+  required: false,
+});
 
-export const KLINIKO_LANGUAGES = [
-  { code: "en", label: "English", short: "EN" },
-  { code: "fa", label: "دری", short: "FA" },
-];
+// =============================================
+// ALL 11 KLINIKO SECTIONS
+// =============================================
 
-// ==========================================
-// ALL KLINIKO SECTIONS
-// ==========================================
+export const SECTIONS = {
+  // ==========================================
+  // 1. HERO SECTION
+  // ==========================================
 
-export const KLINIKO_SECTIONS = {
   hero: {
     name: "Hero",
+
     fields: [
-      rich("badge", "Small Heading"),
+      rich("badge", "Small Heading", false),
       rich("title", "Main Heading"),
       rich("description", "Description"),
-      rich("buttonText", "Button Text"),
-      input("buttonLink", "Button Link", "link"),
-      input("mainImage", "Doctor Image URL", "image"),
-      input("videoLink", "Video URL", "url"),
+      rich("buttonText", "Button Text", false),
+
+      text("buttonLink", "Button Link"),
+
+      image("mainImage", "Doctor Image"),
+
+      text("videoLink", "Video URL"),
     ],
   },
+
+  // ==========================================
+  // 2. ABOUT KLINIKO
+  // ==========================================
 
   about: {
     name: "About Kliniko",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
       rich("description", "Description"),
-      rich("experienceNumber", "Experience Number"),
-      rich("experienceLabel", "Experience Label"),
-      rich("buttonText", "Button Text"),
-      input("buttonLink", "Button Link", "link"),
-      input("mainImage", "Main Image URL", "image"),
-      input("thumbnailImage", "Thumbnail Image URL", "image"),
-      input("videoLink", "Video URL", "url"),
+
+      rich("experienceNumber", "Experience Number", false),
+
+      rich("experienceLabel", "Experience Label", false),
+
+      rich("buttonText", "Button Text", false),
+
+      text("buttonLink", "Button Link"),
+
+      image("Left", "Left Image"),
+      image("RightImage", "Right Image"),
     ],
   },
 
+  // ==========================================
+  // 3. SERVICES
+  // ==========================================
+
   services: {
     name: "Services",
+
     fields: [
-      rich("badge", "Section Label"),
+      rich("badge", "Section Label", false),
       rich("title", "Section Title"),
-      rich("description", "Description"),
+      //   rich("description", "Section Description", false),
     ],
 
     cardName: "Service",
 
     cardFields: [
       rich("title", "Service Title"),
-      rich("description", "Description"),
-      input("icon", "Icon Name"),
-      input("image", "Image URL", "image"),
-      input("link", "Service Link", "link"),
+      rich("description", "Service Description"),
+
+      // An icon name is an identifier,
+      // not content to render as HTML.
+
+      image("image", "Service Image"),
+
+      text("link", "Service Link"),
     ],
   },
 
+  // ==========================================
+  // 4. WHY CHOOSE US
+  // ==========================================
+
   "why-choose": {
     name: "Why Choose Us",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
-      rich("stat1", "First Statistic"),
-      rich("stat2", "Second Statistic"),
-      rich("stat3", "Third Statistic"),
-      rich("stat4", "Fourth Statistic"),
-      input("image", "Section Image URL", "image"),
+      // Section heading
+      rich("badge", "Section Subtitle", false),
+      rich("title", "Section Title"),
+      rich("description", "Section Description"),
+
+      // Statistic 1 - Doctors
+      text("stat1Title", "Statistic 1 Title"),
+      text("stat1Value", "Statistic 1 Value"),
+
+      // Statistic 2 - Patients
+      text("stat2Title", "Statistic 2 Title"),
+      text("stat2Value", "Statistic 2 Value"),
+
+      // Statistic 3
+      text("stat3Title", "Statistic 3 Title"),
+      text("stat3Value", "Statistic 3 Value"),
+
+      // Statistic 4
+      text("stat4Title", "Statistic 4 Title"),
+      text("stat4Value", "Statistic 4 Value"),
+
+      // Main section image
+      image("image", "Section Image"),
     ],
 
     cardName: "Feature",
 
     cardFields: [
+      image("icon", "Feature Icon Image"),
       rich("title", "Feature Title"),
-      rich("description", "Description"),
-      input("icon", "Icon Name"),
+      rich("description", "Feature Description"),
     ],
   },
 
+  // ==========================================
+  // 5. EXPERT DOCTORS
+  // ==========================================
+
   doctors: {
     name: "Expert Doctors",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
     ],
 
     cardName: "Doctor",
 
     cardFields: [
       rich("name", "Doctor Name"),
-      rich("specialty", "Specialty"),
-      rich("bio", "Short Biography"),
-      input("image", "Doctor Photo URL", "image"),
-      input("link", "Profile Link", "link"),
+      rich("specialty", "Doctor Specialty"),
+
+      image("image", "Doctor Photo"),
+
+      text("link", "Profile Link"),
     ],
   },
 
+  // ==========================================
+  // 6. CASE STUDIES
+  // ==========================================
+
   "case-study": {
     name: "Case Studies",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
     ],
 
     cardName: "Case Study",
 
     cardFields: [
       rich("title", "Case Title"),
-      rich("category", "Category"),
-      rich("description", "Description"),
-      input("image", "Case Image URL", "image"),
-      input("link", "Details Link", "link"),
+      rich("category", "Category", false),
+
+      //   rich("description", "Case Description", false),
+
+      image("image", "Case Image"),
+
+      text("link", "Details Link"),
     ],
   },
+
+  // ==========================================
+  // 7. APPOINTMENT
+  // ==========================================
 
   appointment: {
     name: "Appointment",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
-      rich("buttonText", "Button Text"),
-      input("phone", "Phone", "phone"),
-      input("videoLink", "Video URL", "url"),
-      input("image", "Image URL", "image"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
+      rich("buttonText", "Button Text", false),
+
+      // Phone must remain usable for tel: links.
+      text("phone", "Contact Phone", "tel"),
+
+      text("videoLink", "Video URL"),
+
+      image("image", "Thumbnail Image"),
     ],
   },
+
+  // ==========================================
+  // 8. TESTIMONIALS
+  // ==========================================
 
   testimonials: {
     name: "Testimonials",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
     ],
 
-    cardName: "Review",
+    cardName: "Testimonial",
 
     cardFields: [
-      rich("name", "Patient Display Name"),
-      rich("role", "Patient Label"),
-      rich("review", "Review"),
-      input("rating", "Rating", "rating"),
-      input("image", "Patient Photo URL", "image"),
+      rich("name", "Patient Name"),
+      //   rich("role", "Patient Role", false),
+      rich("review", "Patient Review"),
+
+      // Rating must remain a numeric value.
+      text("rating", "Rating", "number"),
+
+      image("image", "Patient Image"),
     ],
   },
 
+  // ==========================================
+  // 9. BLOG & NEWS
+  // ==========================================
+
   blog: {
     name: "Blog & News",
+
     fields: [
-      rich("badge", "Section Label"),
-      rich("title", "Title"),
-      rich("description", "Description"),
+      rich("badge", "Section Label", false),
+      rich("title", "Section Title"),
+      //   rich("description", "Description", false),
     ],
 
     cardName: "Article",
 
     cardFields: [
       rich("title", "Article Title"),
-      rich("excerpt", "Short Description"),
-      rich("author", "Author"),
-      input("date", "Publication Date", "date"),
-      input("image", "Image URL", "image"),
-      input("link", "Article Link", "link"),
+      //   rich("excerpt", "Article Description", false),
+      rich("author", "Author", false),
+
+      // Dates need structured values
+      // for sorting and formatting.
+      text("date", "Publication Date", "date"),
+
+      image("image", "Article Image"),
+
+      text("link", "Article Link"),
     ],
   },
 
+  // ==========================================
+  // 10. NAVBAR
+  // ==========================================
+
   navbar: {
     name: "Navbar",
+
     fields: [
-      rich("brand", "Website Brand Name"),
-      rich("appointmentText", "Appointment Button"),
-      rich("searchPlaceholder", "Search Placeholder"),
-      input("logo", "Logo URL", "image"),
-      input("appointmentLink", "Appointment Link", "link"),
+      rich("brand", "Website Name"),
+
+      rich("appointmentText", "Appointment Button Text", false),
+
+      // HTML cannot be used directly
+      // as an input placeholder.
+      text("searchPlaceholder", "Search Placeholder"),
+
+      image("logo", "Navbar Logo"),
+
+      text("appointmentLink", "Appointment Link"),
     ],
 
     cardName: "Menu Link",
 
-    cardFields: [
-      rich("label", "Menu Label"),
-      input("link", "Menu URL", "link"),
-    ],
+    cardFields: [rich("label", "Menu Label"), text("link", "Menu URL")],
   },
+
+  // ==========================================
+  // 11. FOOTER
+  // ==========================================
 
   footer: {
     name: "Footer",
+
     fields: [
-      rich("brand", "Brand Name"),
-      rich("description", "Description"),
-      rich("address", "Address"),
-      rich("phone", "Phone Display Text"),
-      rich("email", "Email Display Text"),
-      rich("newsletterTitle", "Newsletter Title"),
-      rich("copyright", "Copyright / NetHub Credits"),
-      input("logo", "Footer Logo URL", "image"),
+      rich("brand", "Website Name"),
+
+      rich("description", "Footer Description", false),
+
+      rich("address", "Address", false),
+
+      // Structured contact fields.
+      text("phone", "Phone Number", "tel"),
+      text("email", "Email Address", "email"),
+
+      rich("newsletterTitle", "Newsletter Title", false),
+
+      rich("copyright", "Copyright / NetHub Credits", false),
+
+      image("logo", "Footer Logo"),
     ],
 
     cardName: "Footer Link",
 
-    cardFields: [
-      rich("label", "Link Label"),
-      input("link", "Link URL", "link"),
-    ],
+    cardFields: [rich("label", "Link Label"), text("link", "Link URL")],
   },
 };
 
-// ==========================================
-// CREATE EMPTY SECTION DATA
-// ==========================================
+// =============================================
+// OPTIONAL SHARED HELPERS
+// =============================================
 
-export function emptyKlinikoSection(section) {
-  const config = KLINIKO_SECTIONS[section];
-
-  if (!config) return null;
-
-  return {
-    content: Object.fromEntries(
-      config.fields.map((field) => [
-        field.key,
-        field.type === "rich" ? { en: "", fa: "" } : "",
-      ]),
-    ),
-
-    cards: [],
-  };
+// Find a section safely.
+export function getSectionConfig(section) {
+  return Object.prototype.hasOwnProperty.call(SECTIONS, section)
+    ? SECTIONS[section]
+    : null;
 }
 
-// ==========================================
-// CREATE EMPTY CARD DATA
-// ==========================================
+// Used by model or API route validation.
+export const SECTION_KEYS = Object.keys(SECTIONS);
 
-export function emptyKlinikoCard(section) {
-  const config = KLINIKO_SECTIONS[section];
+// Check whether a section supports cards.
+export function hasSectionCards(section) {
+  const config = getSectionConfig(section);
 
-  if (!config || !config.cardFields) {
-    return {};
-  }
-
-  return Object.fromEntries(
-    config.cardFields.map((field) => [
-      field.key,
-      field.type === "rich" ? { en: "", fa: "" } : "",
-    ]),
-  );
+  return Array.isArray(config?.cardFields);
 }
+
+// All supported languages.
+// Dari is stored but not required.
+export const CONTENT_LANGUAGES = ["en", "fa"];
+
+export const DEFAULT_LANGUAGE = "en";
+
+export const ENABLE_DARI_EDITOR = false;

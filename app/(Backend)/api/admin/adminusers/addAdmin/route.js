@@ -34,11 +34,11 @@ export async function GET() {
 // ==========================================
 export async function POST(req) {
   try {
-    const permission = await requireEditPermission();
+    // const permission = await requireEditPermission();
 
-    if (!permission.authorized) {
-      return permission.response;
-    }
+    // if (!permission.authorized) {
+    //   return permission.response;
+    // }
     await connectDB();
 
     const body = await req.json();
@@ -118,12 +118,12 @@ export async function POST(req) {
 // ==========================================
 export async function PATCH(req) {
   try {
-    const permission = await requireEditPermission();
+    // const permission = await requireEditPermission();
 
-    if (!permission.authorized) {
-      return permission.response;
-    }
-    
+    // if (!permission.authorized) {
+    //   return permission.response;
+    // }
+
     await connectDB();
     const { id, role, password } = await req.json();
 

@@ -4,14 +4,17 @@ import { Headphones, Mail, Play, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import sanitizeHtml from "sanitize-html";
 
-// Exact image from the original Kliniko demo.
-// You can later save it locally in your public folder.
-const APPOINTMENT_IMAGE =
+// ==========================================
+// DEFAULT DATA
+// ==========================================
+
+const DEFAULT_IMAGE =
   "https://html.vecurosoft.com/kliniko/demo/assets/img/bg/appoint-bg-h1.jpg";
 
-// Your YouTube Shorts video.
-const VIDEO_ID = "UyyaVC1hOFA";
+const DEFAULT_VIDEO_ID = "UyyaVC1hOFA";
+const DEFAULT_PHONE = "(000) 920-448-963";
 
 const DEPARTMENTS = [
   "General Medicine",
@@ -32,23 +35,128 @@ const DOCTORS = [
 const FIELD_CLASS =
   "h-[54px] w-full min-w-0 rounded-[8px] border border-[#168DB1] bg-transparent px-4 text-[14px] font-medium text-white outline-none transition-colors duration-200 placeholder:text-[#E3EBFF]/75 focus:border-[#49D5E6] focus:ring-2 focus:ring-[#168DB1]/25 sm:h-[58px] sm:text-[15px]";
 
-const REVEAL = {
-  opacity: 0,
-  y: 24,
+// ==========================================
+// FRAMER MOTION SCROLL ANIMATION
+// ==========================================
+
+const EASE = [0.22, 1, 0.36, 1];
+
+const SCROLL = {
+  once: true,
+  amount: 0.15,
 };
 
-const SHOW = {
-  opacity: 1,
-  y: 0,
-};
-
-const REVEAL_TRANSITION = {
-  duration: 0.7,
-  ease: [0.22, 1, 0.36, 1],
-};
+const reveal = (delay = 0) => ({
+  initial: { opacity: 0, y: 30 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: SCROLL,
+  transition: {
+    duration: 0.7,
+    delay,
+    ease: EASE,
+  },
+});
 
 // ==========================================
-// SMALL MEDICAL ICON
+// SAFE RICH TEXT
+// ==========================================
+
+function rich(value) {
+  if (typeof value !== "string") return "";
+
+  const html = value
+    .replace(/&(?:nbsp|#160|#xA0);/gi, " ")
+    .replace(/\u00a0/g, " ")
+    .replace(/[\u200b-\u200d\ufeff]/g, "")
+    .replace(/<p\b[^>]*>\s*<\/p>/gi, "")
+    .replace(/<\/(?:p|div|h[1-6])>\s*<(?:p|div|h[1-6])\b[^>]*>/gi, "<br>");
+
+  return sanitizeHtml(html, {
+    allowedTags: ["span", "strong", "b", "em", "i", "u", "s", "br"],
+
+    allowedAttributes: {
+      span: ["style"],
+    },
+
+    allowedStyles: {
+      span: {
+        color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+        "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+      },
+    },
+  }).trim();
+}
+
+// ==========================================
+// SAFE URL HELPERS
+// ==========================================
+
+function unwrapUrl(value) {
+  const input = typeof value === "string" ? value.trim() : "";
+
+  const match = /^\[[^\]]+\]\((https?:\/\/[^)]+)\)$/.exec(input);
+
+  return match ? match[1] : input;
+}
+
+function safeImage(value) {
+  const url = unwrapUrl(value);
+
+  if (url.startsWith("/") && !url.startsWith("//") && !/[\\\s"']/.test(url)) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.protocol === "https:" && !parsed.username && !parsed.password) {
+      return url;
+    }
+  } catch {}
+
+  return DEFAULT_IMAGE;
+}
+
+// ==========================================
+// DYNAMIC YOUTUBE VIDEO
+// ==========================================
+
+function youtubeId(value) {
+  const input = unwrapUrl(value);
+
+  if (!input) return DEFAULT_VIDEO_ID;
+
+  try {
+    const url = new URL(input);
+    const host = url.hostname.toLowerCase();
+
+    let id = "";
+
+    if (["youtu.be", "www.youtu.be"].includes(host)) {
+      id = url.pathname.split("/")[1];
+    } else if (
+      [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+      ].includes(host)
+    ) {
+      id =
+        url.pathname === "/watch"
+          ? url.searchParams.get("v")
+          : url.pathname.match(/^\/(?:shorts|embed|live)\/([^/]+)/)?.[1];
+    }
+
+    return /^[\w-]{11}$/.test(id || "") ? id : DEFAULT_VIDEO_ID;
+  } catch {
+    return DEFAULT_VIDEO_ID;
+  }
+}
+
+// ==========================================
+// SECTION MEDICAL ICON
 // ==========================================
 
 function SectionMark() {
@@ -61,27 +169,19 @@ function SectionMark() {
       aria-hidden="true"
       className="shrink-0 text-[#19A4BD]"
     >
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
-
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(-45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
+      {[45, -45].map((rotation) => (
+        <rect
+          key={rotation}
+          x="12"
+          y="1"
+          width="8"
+          height="30"
+          rx="4"
+          transform={`rotate(${rotation} 16 16)`}
+          stroke="currentColor"
+          strokeWidth="2.5"
+        />
+      ))}
 
       <circle cx="16" cy="16" r="2" fill="currentColor" />
     </svg>
@@ -89,7 +189,7 @@ function SectionMark() {
 }
 
 // ==========================================
-// MOLECULAR BACKGROUND
+// ORIGINAL MOLECULAR BACKGROUND
 // ==========================================
 
 const POINTS = [
@@ -168,7 +268,6 @@ function ContactDetail({ icon: Icon, caption, text }) {
   return (
     <div className="flex min-w-0 items-center gap-4">
       <div className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[7px] bg-[#179CB5] text-white sm:h-[58px] sm:w-[58px]">
-        {/* DASHED BORDER */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute -inset-[4px] rounded-[9px] border border-dashed border-[#179CB5]"
@@ -191,16 +290,19 @@ function ContactDetail({ icon: Icon, caption, text }) {
 }
 
 // ==========================================
-// YOUTUBE VIDEO POPUP
+// DYNAMIC YOUTUBE VIDEO POPUP
 // ==========================================
 
-function VideoDialog({ onClose }) {
+function VideoDialog({ onClose, videoId }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
 
+    const previousFocus = document.activeElement;
+
     document.body.style.overflow = "hidden";
+
     closeRef.current?.focus();
 
     const onKeyDown = (event) => {
@@ -215,6 +317,8 @@ function VideoDialog({ onClose }) {
       document.body.style.overflow = previousOverflow;
 
       document.removeEventListener("keydown", onKeyDown);
+
+      previousFocus?.focus?.();
     };
   }, [onClose]);
 
@@ -234,7 +338,6 @@ function VideoDialog({ onClose }) {
         aria-label="Kliniko video"
         className="relative flex max-h-[92dvh] w-full max-w-[440px] flex-col items-center"
       >
-        {/* CLOSE BUTTON */}
         <button
           ref={closeRef}
           type="button"
@@ -245,11 +348,10 @@ function VideoDialog({ onClose }) {
           <X size={23} />
         </button>
 
-        {/* YOUTUBE SHORT */}
         <div className="aspect-[9/16] max-h-[78dvh] w-full overflow-hidden rounded-[18px] bg-black shadow-2xl">
           <iframe
             title="Kliniko appointment video"
-            src={`https://www.youtube-nocookie.com/embed/${VIDEO_ID}?autoplay=1&playsinline=1&rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
@@ -258,7 +360,7 @@ function VideoDialog({ onClose }) {
         </div>
 
         <a
-          href={`https://www.youtube.com/shorts/${VIDEO_ID}`}
+          href={`https://www.youtube.com/watch?v=${videoId}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 text-sm font-medium text-white underline underline-offset-4 hover:text-[#63D6E6]"
@@ -273,12 +375,16 @@ function VideoDialog({ onClose }) {
 
 // ==========================================
 // MAIN APPOINTMENT COMPONENT
+// MONGODB + FRAMER MOTION
 // ==========================================
 
-export default function KlinikoAppointment({ onAppointmentSubmit }) {
+export default function KlinikoAppointment({ data = {}, onAppointmentSubmit }) {
   const [videoOpen, setVideoOpen] = useState(false);
+
   const [mounted, setMounted] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
+
   const [feedback, setFeedback] = useState(null);
 
   const videoButtonRef = useRef(null);
@@ -286,6 +392,29 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ========================================
+  // LOAD MONGODB CONTENT
+  // ========================================
+
+  const badge = rich(data?.badge?.en || "Appointment");
+
+  const title = rich(data?.title?.en || "Make An Appointment For Consulting");
+
+  const buttonText = rich(data?.buttonText?.en || "Make An Appointment");
+
+  const phone =
+    typeof data?.phone === "string" && data.phone.trim()
+      ? data.phone.trim()
+      : DEFAULT_PHONE;
+
+  const image = safeImage(data?.image);
+
+  const videoId = youtubeId(data?.videoLink);
+
+  // ========================================
+  // CLOSE VIDEO
+  // ========================================
 
   const closeVideo = () => {
     setVideoOpen(false);
@@ -295,9 +424,9 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
     });
   };
 
-  // ==========================================
-  // FORM SUBMISSION
-  // ==========================================
+  // ========================================
+  // ORIGINAL FORM SUBMISSION LOGIC
+  // ========================================
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -308,8 +437,6 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
 
     setFeedback(null);
 
-    // The UI is currently static.
-    // Supply a submission handler when your API is ready.
     if (typeof onAppointmentSubmit !== "function") {
       setFeedback({
         type: "info",
@@ -345,27 +472,30 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
     }
   };
 
+  // ========================================
+  // JSX
+  // ========================================
+
   return (
     <section
       aria-labelledby="kliniko-appointment-title"
       className="relative isolate overflow-hidden bg-[#101E50]"
     >
-      {/* ======================================
-          TWO COLUMN SPLIT LAYOUT
-      ====================================== */}
-
+      {/* ORIGINAL TWO-COLUMN LAYOUT */}
       <div className="grid w-full grid-cols-1 lg:grid-cols-[34%_66%]">
-        {/* ====================================
+        {/* ==================================
             LEFT MEDICAL IMAGE
-        ==================================== */}
+            NEW SCROLL ANIMATION
+        ================================== */}
 
-        <div
+        <motion.div
+          {...reveal(0)}
           className="relative isolate min-h-[340px] overflow-hidden bg-[#233D67] bg-cover bg-center sm:min-h-[460px] lg:min-h-full"
           style={{
-            backgroundImage: `url("${APPOINTMENT_IMAGE}")`,
+            backgroundImage: `url("${image}")`,
           }}
         >
-          {/* SOFT IMAGE OVERLAY */}
+          {/* ORIGINAL IMAGE OVERLAY */}
           <div className="pointer-events-none absolute inset-0 bg-[#071D49]/10" />
 
           {/* VIDEO PLAY BUTTON */}
@@ -388,10 +518,8 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
               }}
               className="group relative flex h-[88px] w-[88px] cursor-pointer items-center justify-center rounded-full border border-white/85 bg-white/20 text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:h-[105px] sm:w-[105px]"
             >
-              {/* OUTER RING */}
               <span className="pointer-events-none absolute -inset-[8px] rounded-full border border-white/35" />
 
-              {/* GRADIENT ON HOVER */}
               <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-[#6254ED] via-[#347DCE] to-[#139DB3] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
               <Play
@@ -403,95 +531,79 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
               />
             </motion.button>
           </div>
-        </div>
+        </motion.div>
 
-        {/* ====================================
+        {/* ==================================
             RIGHT APPOINTMENT PANEL
-        ==================================== */}
+        ================================== */}
 
         <div className="relative isolate overflow-hidden bg-[#101E50]">
-          {/* BACKGROUND MOLECULES */}
+          {/* ORIGINAL MOLECULES */}
           <MedicalMolecules className="-top-32 -right-24 h-[350px] w-[480px] opacity-[0.2]" />
 
           <MedicalMolecules className="-bottom-44 -left-24 h-[380px] w-[510px] rotate-180 opacity-[0.16]" />
 
-          {/* SAME SPACING AS HERO */}
           <div className="relative z-10 mx-auto flex h-full w-full max-w-[1540px] items-center px-6 py-16 sm:px-10 sm:py-20 lg:px-12 lg:py-24 2xl:px-6 2xl:py-[110px]">
             <div className="mx-auto w-full max-w-[675px]">
-              {/* ====================================
-                  SECTION HEADER
-              ==================================== */}
+              {/* ==================================
+                  BADGE SCROLL ANIMATION
+              ================================== */}
 
-              <motion.div
-                initial={REVEAL}
-                whileInView={SHOW}
-                viewport={{
-                  once: true,
-                  amount: 0.25,
-                }}
-                transition={REVEAL_TRANSITION}
-              >
-                <div className="flex items-center gap-3">
-                  <SectionMark />
+              <motion.div {...reveal(0.08)} className="flex items-center gap-3">
+                <SectionMark />
 
-                  <span className="text-[17px] font-semibold text-white sm:text-[18px]">
-                    Appointment
-                  </span>
-                </div>
-
-                <h2
-                  id="kliniko-appointment-title"
-                  className="mt-5 max-w-[670px] text-[clamp(2.1rem,3vw,3.5rem)] leading-[1.2] font-bold tracking-[-0.035em] text-white"
-                >
-                  Make An Appointment For Consulting
-                </h2>
+                <span
+                  className="text-[17px] font-semibold text-white sm:text-[18px]"
+                  dangerouslySetInnerHTML={{
+                    __html: badge,
+                  }}
+                />
               </motion.div>
 
-              {/* ====================================
+              {/* ==================================
+                  TITLE SCROLL ANIMATION
+              ================================== */}
+
+              <motion.h2
+                {...reveal(0.16)}
+                id="kliniko-appointment-title"
+                className="mt-5 max-w-[670px] text-[clamp(2.1rem,3vw,3.5rem)] leading-[1.2] font-bold tracking-[-0.035em] text-white"
+                dangerouslySetInnerHTML={{
+                  __html: title,
+                }}
+              />
+
+              {/* ==================================
                   CONTACT DETAILS
-              ==================================== */}
+                  STAGGERED SCROLL ANIMATION
+              ================================== */}
 
-              <motion.div
-                initial={REVEAL}
-                whileInView={SHOW}
-                viewport={{
-                  once: true,
-                  amount: 0.15,
-                }}
-                transition={{
-                  ...REVEAL_TRANSITION,
-                  delay: 0.12,
-                }}
-                className="mt-9 grid grid-cols-1 gap-7 sm:mt-11 sm:grid-cols-2 sm:gap-5"
-              >
-                <ContactDetail
-                  icon={Headphones}
-                  caption="Call Us 24/7"
-                  text="(000) 920-448-963"
-                />
+              <div className="mt-9 grid grid-cols-1 gap-7 sm:mt-11 sm:grid-cols-2 sm:gap-5">
+                <motion.div {...reveal(0.22)}>
+                  <ContactDetail
+                    icon={Headphones}
+                    caption="Call Us 24/7"
+                    text={phone}
+                  />
+                </motion.div>
 
-                <ContactDetail
-                  icon={Mail}
-                  caption="Need Assistance?"
-                  text="info@example.com"
-                />
-              </motion.div>
+                <motion.div {...reveal(0.3)}>
+                  <ContactDetail
+                    icon={Mail}
+                    caption="Need Assistance?"
+                    text="info@example.com"
+                  />
+                </motion.div>
+              </div>
 
-              {/* ====================================
+              {/* ==================================
                   APPOINTMENT FORM
-              ==================================== */}
+                  SCROLL ANIMATION
+                  ORIGINAL INPUT LOGIC
+              ================================== */}
 
               <motion.form
-                initial={REVEAL}
-                whileInView={SHOW}
-                viewport={{
-                  once: true,
-                  amount: 0.1,
-                }}
-                transition={{
-                  ...REVEAL_TRANSITION,
-                  delay: 0.18,
-                }}
+                {...reveal(0.34)}
                 onSubmit={handleSubmit}
                 className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2"
               >
@@ -627,9 +739,9 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
                   className={`${FIELD_CLASS} h-auto min-h-[116px] resize-y py-4 sm:col-span-2`}
                 />
 
-                {/* ====================================
-                    ANIMATED APPOINTMENT BUTTON
-                ==================================== */}
+                {/* ==================================
+                    SUBMIT BUTTON
+                ================================== */}
 
                 <motion.button
                   type="submit"
@@ -656,14 +768,21 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
                   }}
                   className="group relative mt-2 flex min-h-[58px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#159BB1] px-6 text-[15px] font-bold text-white shadow-[0_12px_22px_rgba(0,0,0,0.08)] outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#101E50] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 sm:mt-3"
                 >
-                  {/* GRADIENT HOVER — SAME AS SERVICES */}
                   <span
                     aria-hidden="true"
                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#6255EC] via-[#327BD9] to-[#139DB3] opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100"
                   />
 
                   <span className="relative z-10">
-                    {submitting ? "Sending Request..." : "Make An Appointment"}
+                    {submitting ? (
+                      "Sending Request..."
+                    ) : (
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: buttonText,
+                        }}
+                      />
+                    )}
                   </span>
                 </motion.button>
 
@@ -688,7 +807,9 @@ export default function KlinikoAppointment({ onAppointmentSubmit }) {
       </div>
 
       {/* VIDEO MODAL */}
-      {mounted && videoOpen && <VideoDialog onClose={closeVideo} />}
+      {mounted && videoOpen && (
+        <VideoDialog onClose={closeVideo} videoId={videoId} />
+      )}
     </section>
   );
 }

@@ -564,7 +564,6 @@ body {
   margin-bottom: 0.25em;
 }
 
-
 /* Thin scrollbar for block picker */
 .scrollbar-thin::-webkit-scrollbar {
   width: 5px;
@@ -578,4 +577,78 @@ body {
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: rgba(30, 138, 138, 0.45);
+}
+
+/* Kliniko frontend rich text */
+
+.kliniko-about-content {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.kliniko-about-content * {
+  max-width: 100%;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+.kliniko-about-content p {
+  margin: 0;
+}
+
+.kliniko-about-content p + p {
+  margin-top: 0.5em;
+}
+
+/* ==========================================
+   KLINIKO GLOBAL CMS RICH TEXT
+   Shared across all frontend sections
+========================================== */
+
+.kliniko-rich {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* Keep saved content inside its container */
+.kliniko-rich,
+.kliniko-rich * {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Inherit typography from the frontend design */
+.kliniko-rich :is(p, div, h1, h2, h3, h4, h5, h6) {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+
+/* Paragraph spacing for descriptions */
+.kliniko-rich--description p + p {
+  margin-top: 1em;
+}
+
+/* Compact content: titles, badges, buttons, stats */
+.kliniko-rich--compact
+  :is(p, div, h1, h2, h3, h4, h5, h6)
+  + :is(p, div, h1, h2, h3, h4, h5, h6) {
+  margin-top: 0;
+}
+
+/* Links must not extend outside containers */
+.kliniko-rich a {
+  overflow-wrap: break-word;
 }

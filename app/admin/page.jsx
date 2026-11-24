@@ -52,7 +52,7 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Here's what's happening with your website today.
+            {"Here's"} {"what's"} happening with your website today.
           </p>
         </div>
 
