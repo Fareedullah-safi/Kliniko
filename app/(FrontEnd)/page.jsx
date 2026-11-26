@@ -1,6 +1,10 @@
 import { Suspense } from "react";
-import sanitizeHtml from "sanitize-html";
 
+import {
+  doctorHref,
+  doctorSocialLinks,
+  doctorText,
+} from "@/Lib/Kliniko/doctorProfile";
 import { getKlinikoContent } from "@/Lib/Kliniko/getKlinikoContent";
 
 import KlinikoAbout from "./Home/KlinikoAbout";
@@ -13,39 +17,26 @@ import KlinikoServices from "./Home/KlinikoServices";
 import KlinikoTestimonials from "./Home/KlinikoTestimonials";
 import KlinikoWhyChoose from "./Home/KlinikoWhyChoose";
 
-// The appointment dropdown only needs each doctor's saved ID and name.
-function getDoctorOptions(cards = []) {
-  const doctors = [];
-
-  for (const card of cards) {
-    const id = typeof card?.id === "string" ? card.id.trim() : "";
-
-    // Support both old plain-text names and CMS rich-text translations.
-    const rawName = typeof card?.name === "string" ? card.name : card?.name?.en;
-
-    if (!id || typeof rawName !== "string") continue;
-
-    const name = sanitizeHtml(rawName, {
-      allowedTags: [],
-      allowedAttributes: {},
-    })
-      .replace(/&nbsp;|\u00a0/g, " ")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&amp;/g, "&")
-      .trim();
-
-    if (name) doctors.push({ id, name });
-  }
-
-  return doctors;
-}
-
 async function HomeContent() {
   const cms = await getKlinikoContent();
 
-  const doctorCards = cms.doctors?.cards ?? [];
-  const doctorOptions = getDoctorOptions(doctorCards);
+  const savedDoctors = (cms.doctors?.cards ?? []).filter(
+    (card) => card?.id && doctorText(card.name),
+  );
+
+  const doctorCards = savedDoctors.map((card) => ({
+    id: card.id,
+    name: card.name,
+    specialty: card.specialty,
+    image: card.image,
+    link: doctorHref(card),
+    ...doctorSocialLinks(card),
+  }));
+
+  const doctorOptions = savedDoctors.map((card) => ({
+    id: card.id,
+    name: doctorText(card.name),
+  }));
 
   return (
     <main className="overflow-x-hidden">
@@ -93,7 +84,7 @@ export default function Page() {
     <Suspense
       fallback={
         <main className="flex min-h-screen items-center justify-center">
-          <p>Loading Kliniko...</p>
+          <p role="status">Loading Kliniko...</p>
         </main>
       }
     >

@@ -1,57 +1,63 @@
 "use client";
 
-import { Share2, Stethoscope } from "lucide-react";
-import { motion } from "motion/react";
+import { Globe, Share2, Stethoscope } from "lucide-react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaLinkedinIn,
+  FaTwitter,
+  FaWhatsapp,
+} from "react-icons/fa";
 import sanitizeHtml from "sanitize-html";
 
-// ==========================================
-// DEFAULT DOCTORS
-// ==========================================
+const CLOSE_DELAY = 3000;
+const EASE = [0.22, 1, 0.36, 1];
+const SPRING = { type: "spring", stiffness: 260, damping: 24 };
+
+const IMAGE_BASE =
+  "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors";
 
 const DEFAULT_DOCTORS = [
   {
     id: "dr-arman-hossain",
     name: "Dr. Arman Hossain",
     specialty: "Internal Medicine",
-    image:
-      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img1.jpg",
+    image: `${IMAGE_BASE}/dr-h1-img1.jpg`,
   },
   {
     id: "dr-sofia-rahman",
     name: "Dr. Sofia Rahman",
     specialty: "Specialist – Cardiology",
-    image:
-      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img2.jpg",
+    image: `${IMAGE_BASE}/dr-h1-img2.jpg`,
   },
   {
     id: "dr-neil-chowdhury",
     name: "Dr. Neil Chowdhury",
     specialty: "Orthopedic & Trauma",
-    image:
-      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img3.jpg",
+    image: `${IMAGE_BASE}/dr-h1-img3.jpg`,
   },
   {
     id: "dr-farhana-zayed",
     name: "Dr. Farhana Zayed",
     specialty: "Neurology Specialist",
-    image:
-      "https://html.vecurosoft.com/kliniko/demo/assets/img/doctors/dr-h1-img4.jpg",
+    image: `${IMAGE_BASE}/dr-h1-img4.jpg`,
   },
 ];
 
-// ==========================================
-// ORIGINAL HOVER ANIMATION
-// ==========================================
+const NETWORKS = [
+  { key: "facebook", label: "Facebook", Icon: FaFacebookF },
+  { key: "twitter", label: "Twitter / X", Icon: FaTwitter },
+  { key: "linkedin", label: "LinkedIn", Icon: FaLinkedinIn },
+  { key: "whatsapp", label: "WhatsApp", Icon: FaWhatsapp },
+  { key: "instagram", label: "Instagram", Icon: FaInstagram },
+  { key: "website", label: "Website", Icon: Globe },
+];
 
-const spring = {
-  type: "spring",
-  stiffness: 260,
-  damping: 24,
-};
-
-const cardVariants = {
+const CARD_VARIANTS = {
   idle: {
     y: 0,
     scale: 1,
@@ -66,9 +72,9 @@ const cardVariants = {
   },
 };
 
-// ==========================================
-// SAFE RICH TEXT
-// ==========================================
+function english(value) {
+  return typeof value === "string" ? value : value?.en || "";
+}
 
 function rich(value, inheritWhite = false) {
   if (typeof value !== "string") return "";
@@ -78,14 +84,11 @@ function rich(value, inheritWhite = false) {
     .replace(/\u00a0/g, " ")
     .replace(/[\u200b-\u200d\ufeff]/g, "")
     .replace(/<p\b[^>]*>\s*<\/p>/gi, "")
-    .replace(/<\/(?:p|div|h[1-6])\s*>\s*<(?:p|div|h[1-6])\b[^>]*>/gi, "<br>")
-    .replace(/<\/?(?:p|div|h[1-6])\b[^>]*>/gi, "");
+    .replace(/<\/(?:p|div|h[1-6])>\s*<(?:p|div|h[1-6])\b[^>]*>/gi, "<br>");
 
   return sanitizeHtml(html, {
     allowedTags: ["span", "strong", "b", "em", "i", "u", "s", "br"],
-    allowedAttributes: {
-      span: ["style"],
-    },
+    allowedAttributes: { span: ["style"] },
     allowedStyles: {
       span: {
         color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
@@ -94,29 +97,20 @@ function rich(value, inheritWhite = false) {
     },
     transformTags: inheritWhite
       ? {
-          span: (tag, attributes) => {
-            const style = attributes.style || "";
-
-            if (
-              /color\s*:\s*(?:rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)|#fff(?:fff)?)(?:\s*;|\s*$)/i.test(
-                style,
+          span(tagName, attribs) {
+            const style = (attribs.style || "")
+              .split(";")
+              .filter(
+                (part) =>
+                  !/^\s*color\s*:\s*(?:#fff(?:fff)?|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))\s*$/i.test(
+                    part,
+                  ),
               )
-            ) {
-              const rest = style.replace(
-                /(?:^|;)\s*color\s*:\s*(?:rgb\(\s*255\s*,\s*255\s*,\s*255\s*\)|#fff(?:fff)?)(?=\s*(?:;|$))/gi,
-                "",
-              );
-
-              if (rest.trim()) {
-                attributes.style = rest;
-              } else {
-                delete attributes.style;
-              }
-            }
+              .join(";");
 
             return {
-              tagName: tag,
-              attribs: attributes,
+              tagName,
+              attribs: style ? { ...attribs, style } : {},
             };
           },
         }
@@ -124,79 +118,91 @@ function rich(value, inheritWhite = false) {
   }).trim();
 }
 
-// ==========================================
-// PLAIN TEXT FOR SHARING AND ALT TEXT
-// ==========================================
-
-function asText(html) {
-  return sanitizeHtml(html, {
+function plainText(html) {
+  return sanitizeHtml(html.replace(/<br\s*\/?>/gi, " "), {
     allowedTags: [],
     allowedAttributes: {},
   })
-    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;|\u00a0/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
     .trim();
 }
 
-// ==========================================
-// SAFE CLOUDINARY IMAGE
-// ==========================================
-
-function safeImage(value, fallback) {
-  if (typeof value !== "string") return fallback;
-
-  const input = value.trim();
-
-  const markdown = /^\[[^\]]+\]\((https?:\/\/[^)]+)\)$/.exec(input);
-
-  const src = markdown ? markdown[1] : input;
-
-  if (src.startsWith("/") && !src.startsWith("//") && !/[\\\s]/.test(src)) {
-    return src;
-  }
-
-  try {
-    const url = new URL(src);
-
-    if (url.protocol === "https:" && !url.username && !url.password) {
-      return src;
-    }
-  } catch {}
-
-  return fallback;
-}
-
-// ==========================================
-// SAFE PROFILE LINK
-// ==========================================
-
-function safeLink(value) {
+function safeUrl(value, allowLocal = false) {
   if (typeof value !== "string") return "";
 
-  const src = value.trim();
+  const input = value.trim();
+  const markdownLink = /^\[[^\]]*\]\((https?:\/\/[^)]+)\)$/.exec(input);
+  const href = markdownLink ? markdownLink[1] : input;
 
-  if (src.startsWith("/") && !src.startsWith("//") && !/[\\\s]/.test(src)) {
-    return src;
+  if (
+    allowLocal &&
+    href.startsWith("/") &&
+    !href.startsWith("//") &&
+    !/[\\\s]/.test(href)
+  ) {
+    return href;
   }
 
   try {
-    const url = new URL(src);
+    const url = new URL(href);
 
     if (
       ["https:", "http:"].includes(url.protocol) &&
       !url.username &&
       !url.password
     ) {
-      return src;
+      return url.href;
     }
-  } catch {}
+  } catch {
+    return "";
+  }
 
   return "";
 }
 
-// ==========================================
-// SECTION ICON
-// ==========================================
+function getSocialItems(doctor, pageUrl) {
+  const encodedUrl = encodeURIComponent(pageUrl);
+  const title = encodeURIComponent(`${doctor.nameText} | Kliniko`);
+
+  const shareLinks = pageUrl
+    ? {
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+        twitter: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${title}`,
+        linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+        whatsapp: `https://wa.me/?text=${encodeURIComponent(
+          `${doctor.nameText} | Kliniko\n${pageUrl}`,
+        )}`,
+      }
+    : {};
+
+  return NETWORKS.flatMap(({ key, label, Icon }) => {
+    let savedUrl = safeUrl(doctor.links[key]);
+
+    // Your sample MongoDB records contain example.com placeholders.
+    if (savedUrl && /(^|\.)example\.com$/i.test(new URL(savedUrl).hostname)) {
+      savedUrl = "";
+    }
+
+    const href = savedUrl || shareLinks[key];
+    if (!href) return [];
+
+    return [
+      {
+        key,
+        Icon,
+        href,
+        label: savedUrl
+          ? `Open ${doctor.nameText}'s ${label} link`
+          : `Share ${doctor.nameText}'s profile on ${label}`,
+      },
+    ];
+  });
+}
 
 function SectionMark() {
   return (
@@ -208,265 +214,319 @@ function SectionMark() {
       aria-hidden="true"
       className="shrink-0 text-[#149EB5]"
     >
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
-
-      <rect
-        x="12"
-        y="1"
-        width="8"
-        height="30"
-        rx="4"
-        transform="rotate(-45 16 16)"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
-
+      {[45, -45].map((rotation) => (
+        <rect
+          key={rotation}
+          x="12"
+          y="1"
+          width="8"
+          height="30"
+          rx="4"
+          transform={`rotate(${rotation} 16 16)`}
+          stroke="currentColor"
+          strokeWidth="2.5"
+        />
+      ))}
       <circle cx="16" cy="16" r="2" fill="currentColor" />
     </svg>
   );
 }
 
-// ==========================================
-// DOCTOR CARD
-// ==========================================
+function DoctorShare({ doctor }) {
+  const [open, setOpen] = useState(false);
+  const [pageUrl, setPageUrl] = useState("");
 
-function DoctorCard({ doctor, index }) {
-  const [active, setActive] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [message, setMessage] = useState("");
+  const rootRef = useRef(null);
+  const triggerRef = useRef(null);
+  const panelRef = useRef(null);
+  const timerRef = useRef(null);
+  const hoveringRef = useRef(false);
+  const clickedRef = useRef(false);
+  const panelId = useId();
 
-  const messageTimer = useRef(null);
+  useEffect(() => {
+    const href = doctor.href || `#${encodeURIComponent(doctor.id)}`;
+    setPageUrl(new URL(href, window.location.href).href);
 
-  useEffect(() => () => clearTimeout(messageTimer.current), []);
+    return () => clearTimeout(timerRef.current);
+  }, [doctor.href, doctor.id]);
 
-  // ORIGINAL SHARE FUNCTION
-  const shareDoctor = async () => {
-    const fallback = `${window.location.origin}${window.location.pathname}#${doctor.id}`;
+  function cancelTimer() {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
 
-    const url =
-      doctor.link && doctor.link !== "/"
-        ? new URL(doctor.link, window.location.origin).href
-        : fallback;
+  function closeNow() {
+    cancelTimer();
+    clickedRef.current = false;
+    setOpen(false);
+  }
 
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: doctor.nameText,
-          text: doctor.specialtyText,
-          url,
-        });
+  function closeAfterDelay() {
+    cancelTimer();
 
-        return;
+    timerRef.current = setTimeout(() => {
+      // Let a keyboard user finish tabbing through the links.
+      if (panelRef.current?.contains(document.activeElement)) return;
+
+      clickedRef.current = false;
+      setOpen(false);
+    }, CLOSE_DELAY);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handleOutside(event) {
+      if (!rootRef.current?.contains(event.target)) {
+        clearTimeout(timerRef.current);
+        clickedRef.current = false;
+        setOpen(false);
       }
-
-      if (!navigator.clipboard?.writeText) {
-        throw new Error("Clipboard unavailable");
-      }
-
-      await navigator.clipboard.writeText(url);
-      setMessage("Link copied!");
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-
-      setMessage("Unable to share. Please try again.");
     }
 
-    clearTimeout(messageTimer.current);
+    function handleEscape(event) {
+      if (event.key !== "Escape") return;
 
-    messageTimer.current = setTimeout(() => setMessage(""), 2400);
-  };
+      if (rootRef.current?.contains(document.activeElement)) {
+        triggerRef.current?.focus();
+      }
+
+      clearTimeout(timerRef.current);
+      clickedRef.current = false;
+      setOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handleOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  const items = getSocialItems(doctor, pageUrl);
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative z-20 shrink-0"
+      onPointerEnter={(event) => {
+        if (event.pointerType === "touch") return;
+
+        hoveringRef.current = true;
+        cancelTimer();
+        setOpen(true);
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "touch") return;
+
+        hoveringRef.current = false;
+        closeAfterDelay();
+      }}
+      onFocusCapture={cancelTimer}
+      onBlurCapture={(event) => {
+        if (
+          !event.currentTarget.contains(event.relatedTarget) &&
+          !hoveringRef.current
+        ) {
+          closeAfterDelay();
+        }
+      }}
+    >
+      <motion.button
+        ref={triggerRef}
+        type="button"
+        aria-label={`Social links for ${doctor.nameText}`}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={() => {
+          cancelTimer();
+
+          // The first click also works when hover has already opened the rail.
+          if (open && clickedRef.current) {
+            closeNow();
+          } else {
+            clickedRef.current = true;
+            setOpen(true);
+          }
+        }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
+        transition={SPRING}
+        className={`grid size-[52px] cursor-pointer place-items-center rounded-full text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159DB5] sm:size-14 ${
+          open
+            ? "bg-gradient-to-br from-[#6456EE] via-[#367DD7] to-[#119DB3]"
+            : "bg-[#6055ED]"
+        }`}
+      >
+        <Share2 size={22} strokeWidth={2.6} aria-hidden="true" />
+      </motion.button>
+
+      <AnimatePresence>
+        {open && items.length > 0 && (
+          <motion.ul
+            key="social-links"
+            ref={panelRef}
+            id={panelId}
+            aria-label={`${doctor.nameText} social links`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.16, ease: EASE }}
+            className="absolute inset-e-0 bottom-full flex max-h-[min(270px,55dvh)] w-[52px] flex-col items-center gap-1 overflow-y-auto overscroll-contain pb-2 sm:w-14"
+          >
+            {items.map(({ key, Icon, href, label }, index) => (
+              <motion.li
+                key={key}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.17, delay: index * 0.025 }}
+                className="shrink-0"
+              >
+                <motion.a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={label}
+                  title={label}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.94 }}
+                  className="grid size-9 place-items-center rounded-full border border-[#C6E3E6] bg-white text-[#10234E] shadow-sm transition-colors hover:border-[#119EB4] hover:bg-[#119EB4] hover:text-white focus-visible:bg-[#119EB4] focus-visible:text-white focus-visible:outline-2 focus-visible:outline-[#142A55]"
+                >
+                  <Icon size={15} aria-hidden="true" />
+                </motion.a>
+              </motion.li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DoctorCard({ doctor, index }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const portrait = (
+    <div className="relative aspect-[1.31] w-full overflow-hidden rounded-[27px] bg-[#87A7B2]">
+      {imageError ? (
+        <div className="flex h-full flex-col items-center justify-center gap-3 text-[#101E50]">
+          <Stethoscope size={44} aria-hidden="true" />
+          <span className="text-xs font-medium">Doctor image unavailable</span>
+        </div>
+      ) : (
+        <motion.div
+          className="absolute inset-0"
+          variants={{
+            idle: { scale: 1, y: 0 },
+            hover: { scale: 1.085, y: -5 },
+          }}
+          transition={{ duration: 0.6, ease: EASE }}
+        >
+          <Image
+            src={doctor.image}
+            alt={`Portrait of ${doctor.nameText}`}
+            fill
+            unoptimized
+            priority={index === 0}
+            sizes="(max-width: 639px) 90vw, (max-width: 1279px) 44vw, 24vw"
+            className="object-cover object-center"
+            onError={() => setImageError(true)}
+          />
+        </motion.div>
+      )}
+
+      <motion.div
+        aria-hidden="true"
+        variants={{ idle: { opacity: 0 }, hover: { opacity: 0.12 } }}
+        className="pointer-events-none absolute inset-0 bg-[#101E50]"
+      />
+    </div>
+  );
+
+  const name = <span dangerouslySetInnerHTML={{ __html: doctor.nameHtml }} />;
 
   return (
     <motion.article
       id={doctor.id}
-      tabIndex={0}
       initial={false}
-      animate={active ? "hover" : "idle"}
-      variants={cardVariants}
-      transition={spring}
+      animate={hovered || focused ? "hover" : "idle"}
+      variants={CARD_VARIANTS}
+      transition={SPRING}
       onPointerEnter={(event) => {
-        if (event.pointerType !== "touch") {
-          setActive(true);
-        }
+        if (event.pointerType !== "touch") setHovered(true);
       }}
-      onPointerLeave={() => setActive(false)}
-      onFocusCapture={() => setActive(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
-          setActive(false);
+          setFocused(false);
         }
       }}
-      className="relative flex h-full min-w-0 flex-col rounded-[28px] p-[13px] pb-6 outline-none focus-visible:ring-2 focus-visible:ring-[#139DB3] focus-visible:ring-offset-4 sm:p-[14px] sm:pb-7"
+      className="relative flex h-full min-w-0 flex-col rounded-[28px] p-[13px] pb-6 sm:p-[14px] sm:pb-7"
     >
-      {/* DOCTOR IMAGE */}
-      <div className="relative aspect-[1.31] w-full overflow-hidden rounded-[27px] bg-[#87A7B2]">
-        {imageError ? (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-[#101E50]">
-            <Stethoscope size={44} />
+      {doctor.href ? (
+        <Link
+          href={doctor.href}
+          aria-label={`View ${doctor.nameText}'s profile`}
+          className="block rounded-[27px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159DB5]"
+        >
+          {portrait}
+        </Link>
+      ) : (
+        portrait
+      )}
 
-            <span className="text-center text-xs font-medium">
-              Doctor image unavailable
-            </span>
-          </div>
-        ) : (
-          <motion.div
-            className="absolute inset-0"
-            variants={{
-              idle: {
-                scale: 1,
-                y: 0,
-              },
-              hover: {
-                scale: 1.085,
-                y: -5,
-              },
-            }}
-            transition={{
-              duration: 0.6,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-          >
-            <Image
-              src={doctor.image}
-              alt={`Portrait of ${doctor.nameText}`}
-              fill
-              unoptimized
-              sizes="(max-width: 639px) calc(100vw - 74px), (max-width: 1279px) 44vw, (max-width: 1535px) 23vw, 350px"
-              className="object-cover object-center"
-              priority={index === 0}
-              onError={() => setImageError(true)}
-            />
-          </motion.div>
-        )}
-
-        {/* HOVER IMAGE OVERLAY */}
-        <motion.div
-          aria-hidden="true"
-          initial={false}
-          variants={{
-            idle: { opacity: 0 },
-            hover: { opacity: 0.12 },
-          }}
-          transition={{ duration: 0.3 }}
-          className="pointer-events-none absolute inset-0 bg-[#101E50]"
-        />
-      </div>
-
-      {/* DOCTOR INFORMATION */}
       <div className="flex min-w-0 flex-1 flex-col px-2 pt-6 sm:pt-7">
-        {/* DOCTOR NAME */}
         <div className="relative self-start">
           <motion.h3
             variants={{
               idle: { color: "#101E50" },
               hover: { color: "#FFFFFF" },
             }}
-            transition={{ duration: 0.3 }}
             className="text-[22px] leading-[1.3] font-bold tracking-[-0.02em] sm:text-[25px] xl:text-[21px] 2xl:text-[27px]"
-            dangerouslySetInnerHTML={{
-              __html: doctor.nameHtml,
-            }}
-          />
+          >
+            {doctor.href ? <Link href={doctor.href}>{name}</Link> : name}
+          </motion.h3>
 
-          {/* ANIMATED UNDERLINE */}
           <motion.span
             aria-hidden="true"
-            initial={false}
-            variants={{
-              idle: { scaleX: 0 },
-              hover: { scaleX: 1 },
-            }}
-            transition={{
-              duration: 0.35,
-              ease: "easeOut",
-            }}
-            className="absolute -bottom-[5px] left-0 h-[2px] w-full origin-left rounded-full bg-white"
+            variants={{ idle: { scaleX: 0 }, hover: { scaleX: 1 } }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="pointer-events-none absolute inset-s-0 -bottom-[5px] h-0.5 w-full origin-left rounded-full bg-white rtl:origin-right"
           />
         </div>
 
-        {/* SPECIALTY AND SHARE BUTTON */}
         <div className="mt-auto flex items-end justify-between gap-2 pt-6">
           <motion.p
             variants={{
               idle: { color: "#7D8486" },
               hover: { color: "#FFFFFF" },
             }}
-            transition={{ duration: 0.3 }}
             className="min-w-0 pb-1 text-[16px] leading-[1.4] sm:text-[18px] xl:text-[15px] 2xl:text-[18px]"
-            dangerouslySetInnerHTML={{
-              __html: doctor.specialtyHtml,
-            }}
+            dangerouslySetInnerHTML={{ __html: doctor.specialtyHtml }}
           />
 
-          {/* SHARE BUTTON */}
-          <motion.button
-            type="button"
-            onClick={shareDoctor}
-            aria-label={`Share ${doctor.nameText}`}
-            whileHover={{
-              scale: 1.13,
-              rotate: 10,
-            }}
-            whileTap={{ scale: 0.92 }}
-            transition={{
-              type: "spring",
-              stiffness: 350,
-              damping: 18,
-            }}
-            className="relative flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#6055ED] text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#159DB5] sm:h-[56px] sm:w-[56px]"
-          >
-            <motion.span
-              aria-hidden="true"
-              initial={false}
-              variants={{
-                idle: { opacity: 0 },
-                hover: { opacity: 1 },
-              }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 bg-gradient-to-br from-[#6456EE] via-[#367DD7] to-[#119DB3]"
-            />
-
-            <Share2 size={22} strokeWidth={2.6} className="relative z-10" />
-          </motion.button>
+          <DoctorShare doctor={doctor} />
         </div>
-
-        <span className="sr-only" role="status" aria-live="polite">
-          {message}
-        </span>
       </div>
     </motion.article>
   );
 }
 
-// ==========================================
-// MAIN DOCTORS SECTION
-// MONGODB + SCROLL ANIMATIONS
-// ==========================================
-
 export default function KlinikoDoctors({ data = {}, cards = [] }) {
-  // SECTION DATA
-  const badge = rich(data?.badge?.en || "Our Expert Doctors");
-
+  const badge = rich(english(data.badge) || "Our Expert Doctors");
   const title = rich(
-    data?.title?.en || "Trusted Doctors Committed<br>to Your Well-Being",
+    english(data.title) || "Trusted Doctors Committed<br>to Your Well-Being",
   );
 
-  // DYNAMIC DOCTOR CARDS
   const doctors = useMemo(() => {
     const saved = Array.isArray(cards)
-      ? cards.filter(
-          (card) =>
-            card && typeof card === "object" && (card.name?.en || card.image),
-        )
+      ? cards.filter((card) => card && (english(card.name) || card.image))
       : [];
 
     const source = saved.length ? saved : DEFAULT_DOCTORS;
@@ -474,129 +534,85 @@ export default function KlinikoDoctors({ data = {}, cards = [] }) {
     return source.map((card, index) => {
       const fallback = DEFAULT_DOCTORS[index % DEFAULT_DOCTORS.length];
 
-      const nameHtml = rich(card.name?.en || card.name || fallback.name, true);
-
+      const nameHtml = rich(english(card.name) || fallback.name, true);
       const specialtyHtml = rich(
-        card.specialty?.en || card.specialty || fallback.specialty,
+        english(card.specialty) || fallback.specialty,
         true,
       );
 
       return {
         id: card.id || fallback.id,
         nameHtml,
+        nameText: plainText(nameHtml),
         specialtyHtml,
-        nameText: asText(nameHtml),
-        specialtyText: asText(specialtyHtml),
-        image: safeImage(card.image, fallback.image),
-        link: safeLink(card.link),
+        image: safeUrl(card.image, true) || fallback.image,
+        href: safeUrl(card.link, true),
+        links: {
+          facebook: card.facebook,
+          twitter: card.twitter,
+          linkedin: card.linkedin,
+          whatsapp: card.whatsapp,
+          instagram: card.instagram,
+          website: card.website,
+        },
       };
     });
   }, [cards]);
 
   return (
-    <section
-      aria-labelledby="kliniko-doctors-heading"
-      className="overflow-hidden bg-white py-16 sm:py-20 lg:py-[40px]"
-    >
-      <div className="mx-auto w-full max-w-[1540px] px-6 sm:px-10 lg:px-12 2xl:px-6">
-        {/* ==================================
-            ANIMATED SECTION HEADING
-        ================================== */}
-
-        <div className="text-center">
-          {/* BADGE SCROLL ANIMATION */}
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 24,
-            }}
-            whileInView={{
-              opacity: 1,
-              y: 0,
-            }}
-            viewport={{
-              once: true,
-              amount: 0.5,
-            }}
-            transition={{
-              duration: 0.65,
-              ease: "easeOut",
-            }}
-            className="flex items-center justify-center gap-3"
-          >
-            <SectionMark />
-
-            <span
-              className="text-[19px] font-semibold text-[#101E50] sm:text-[23px]"
-              dangerouslySetInnerHTML={{
-                __html: badge,
-              }}
-            />
-
-            <SectionMark />
-          </motion.div>
-
-          {/* TITLE SCROLL ANIMATION */}
-          <motion.h2
-            id="kliniko-doctors-heading"
-            initial={{
-              opacity: 0,
-              y: 35,
-            }}
-            whileInView={{
-              opacity: 1,
-              y: 0,
-            }}
-            viewport={{
-              once: true,
-              amount: 0.3,
-            }}
-            transition={{
-              duration: 0.75,
-              delay: 0.12,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="mx-auto mt-7 max-w-[1080px] text-[clamp(2.2rem,4vw,4rem)] leading-[1.2] font-bold tracking-[-0.035em] text-[#101E50]"
-            dangerouslySetInnerHTML={{
-              __html: title,
-            }}
-          />
-        </div>
-
-        {/* ==================================
-            DOCTOR CARDS SCROLL ANIMATION
-        ================================== */}
-
-        <div className="mt-12 grid grid-cols-1 items-stretch gap-6 sm:mt-14 sm:grid-cols-2 lg:gap-7 xl:mt-[75px] xl:grid-cols-4 xl:gap-6 2xl:gap-8">
-          {doctors.map((doctor, index) => (
+    <MotionConfig reducedMotion="user">
+      <section
+        aria-labelledby="kliniko-doctors-heading"
+        className="overflow-hidden bg-white py-16 sm:py-20 lg:py-[40px]"
+      >
+        <div className="mx-auto w-full max-w-[1540px] px-6 sm:px-10 lg:px-12 2xl:px-6">
+          <div className="text-center">
             <motion.div
-              key={`${doctor.id}-${doctor.image}`}
-              initial={{
-                opacity: 0,
-                y: 55,
-                scale: 0.97,
-              }}
-              whileInView={{
-                opacity: 1,
-                y: 0,
-                scale: 1,
-              }}
-              viewport={{
-                once: true,
-                amount: 0.12,
-              }}
-              transition={{
-                duration: 0.7,
-                delay: Math.min(index, 4) * 0.12,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              className="h-full min-w-0"
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.5 }}
+              transition={{ duration: 0.65, ease: "easeOut" }}
+              className="flex items-center justify-center gap-3"
             >
-              <DoctorCard doctor={doctor} index={index} />
+              <SectionMark />
+              <span
+                className="text-[19px] font-semibold text-[#101E50] sm:text-[23px]"
+                dangerouslySetInnerHTML={{ __html: badge }}
+              />
+              <SectionMark />
             </motion.div>
-          ))}
+
+            <motion.h2
+              id="kliniko-doctors-heading"
+              initial={{ opacity: 0, y: 35 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.75, delay: 0.12, ease: EASE }}
+              className="mx-auto mt-7 max-w-[1080px] text-[clamp(2.2rem,4vw,4rem)] leading-[1.2] font-bold tracking-[-0.035em] whitespace-pre-line text-[#101E50]"
+              dangerouslySetInnerHTML={{ __html: title }}
+            />
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 items-stretch gap-6 sm:mt-14 sm:grid-cols-2 lg:gap-7 xl:mt-[75px] xl:grid-cols-4 xl:gap-6 2xl:gap-8">
+            {doctors.map((doctor, index) => (
+              <motion.div
+                key={`${doctor.id}-${doctor.image}`}
+                initial={{ opacity: 0, y: 55, scale: 0.97 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, amount: 0.12 }}
+                transition={{
+                  duration: 0.7,
+                  delay: Math.min(index, 4) * 0.12,
+                  ease: EASE,
+                }}
+                className="h-full min-w-0"
+              >
+                <DoctorCard doctor={doctor} index={index} />
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </MotionConfig>
   );
 }
