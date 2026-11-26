@@ -306,52 +306,55 @@ export const SECTIONS = {
     name: "Navbar",
 
     fields: [
-      rich("brand", "Website Name"),
+      image("logo", "Website Logo"),
+
+      rich("brand", "Website Name", false),
+
+      rich("searchTitle", "Search Title", false),
+      rich("searchSubtitle", "Search Subtitle", false),
+      rich("searchPlaceholder", "Search Placeholder", false),
 
       rich("appointmentText", "Appointment Button Text", false),
-
-      // HTML cannot be used directly
-      // as an input placeholder.
-      text("searchPlaceholder", "Search Placeholder"),
-
-      image("logo", "Navbar Logo"),
-
-      text("appointmentLink", "Appointment Link"),
+      text("appointmentLink", "Appointment Button URL"),
     ],
 
-    cardName: "Menu Link",
+    cardName: "Menu",
 
-    cardFields: [rich("label", "Menu Label"), text("link", "Menu URL")],
+    cardFields: [
+      rich("label", "Menu Name"),
+      text("link", "Menu URL"),
+      text("parentId", "Parent Menu ID"),
+      text("hasDropdown", "Enable Dropdown"),
+      text("showInFooter", "Show in Footer"),
+    ],
   },
-
-  // ==========================================
-  // 11. FOOTER
-  // ==========================================
 
   footer: {
     name: "Footer",
 
     fields: [
-      rich("brand", "Website Name"),
+      image("logo", "Footer Logo"),
 
+      rich("brand", "Website Name", false),
       rich("description", "Footer Description", false),
 
       rich("address", "Address", false),
+      rich("emailLabel", "Email Heading", false),
+      rich("email", "Email Address", false),
+      rich("phoneLabel", "Phone Heading", false),
+      rich("phone", "Phone Number", false),
 
-      // Structured contact fields.
-      text("phone", "Phone Number", "tel"),
-      text("email", "Email Address", "email"),
+      rich("servicesTitle", "Services Column Heading", false),
+      rich("linksTitle", "Useful Links Column Heading", false),
 
-      rich("newsletterTitle", "Newsletter Title", false),
+      rich("newsletterTitle", "Newsletter Heading", false),
+      rich("newsletterDescription", "Newsletter Description", false),
+      rich("newsletterPlaceholder", "Newsletter Email Placeholder", false),
+      rich("subscribeText", "Subscribe Button Text", false),
+      // rich("subscribingText", "Submitting Button Text", false),
 
-      rich("copyright", "Copyright / NetHub Credits", false),
-
-      image("logo", "Footer Logo"),
+      // rich("copyright", "Copyright / Credits", false),
     ],
-
-    cardName: "Footer Link",
-
-    cardFields: [rich("label", "Link Label"), text("link", "Link URL")],
   },
 };
 

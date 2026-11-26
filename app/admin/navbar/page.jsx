@@ -1,934 +1,1170 @@
 "use client";
 
-import AdminLanguageBall from "@/app/Components/Admin/AdminLanguageBall";
-import Spinner from "@/app/Components/Admin/Spinner";
-import axios from "axios";
+import { useKlinikoLanguage } from "@/app/Components/Admin/Kliniko/KlinikoLanguageProvider";
+import PublicLanguageBall from "@/app/Components/Admin/Kliniko/PublicLanguageBall";
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
+  ChevronDown,
   LayoutGrid,
-  Link as LinkIcon,
+  Link2,
   Loader2,
   Plus,
+  RefreshCw,
   Save,
   Settings,
   Trash2,
   Upload,
 } from "lucide-react";
 import Script from "next/script";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-// ==========================================
-// 0. PERMISSION HELPER
-// ==========================================
-async function verifyUploadPermission() {
-  try {
-    const res = await fetch("/api/admin/cloudinary/verify", {
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (res.ok && data && data.success === true) {
-      return true;
-    }
-    return false;
-  } catch (err) {
-    return false;
-  }
-}
-
-// ==========================================
-// 0b. CLOUDINARY WIDGET THEME
-// ==========================================
-function cloudinaryStyles(theme) {
-  const palettes = {
-    dark: {
-      window: "#0b1117",
-      windowBorder: "#1E8A8A",
-      tabIcon: "#35B5B5",
-      menuIcons: "#9CA3AF",
-      textDark: "#FFFFFF",
-      textLight: "#FFFFFF",
-      link: "#35B5B5",
-      action: "#1E8A8A",
-      inactiveTabIcon: "#6B7280",
-      error: "#EF4444",
-      inProgress: "#35B5B5",
-      complete: "#10B981",
-      sourceBg: "#111a23",
-    },
-    light: {
-      window: "#FFFFFF",
-      windowBorder: "#1E8A8A",
-      tabIcon: "#1E8A8A",
-      menuIcons: "#4B5563",
-      textDark: "#000000",
-      textLight: "#FFFFFF",
-      link: "#1E8A8A",
-      action: "#1E8A8A",
-      inactiveTabIcon: "#9CA3AF",
-      error: "#EF4444",
-      inProgress: "#1E8A8A",
-      complete: "#10B981",
-      sourceBg: "#F9FAFB",
-    },
-  };
-  return { palette: palettes[theme] || palettes.light };
-}
-
-// ==========================================
-// 1. HELPER VARIABLES
-// ==========================================
 const API = "/api/navbar";
-const LANGS = [
-  { code: "en", label: "English" },
-  { code: "ps", label: "پښتو" },
-  { code: "fa", label: "دری" },
-];
 
-// Helper to create an empty translation object
-const emptyLabel = () => ({ label: "" });
-const emptySearch = () => ({ heading: "", subheading: "", placeholder: "" });
+const PANEL =
+  "overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl";
 
-// Helper to create a unique ID for new links
-const generateId = () =>
-  `nav_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+const INPUT =
+  "w-full min-w-0 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--accent)]";
 
-// The default empty structure for our navigation
-const defaultConfig = () => ({
-  logo: "",
-  logoPublicId: "",
-  cta: {
-    href: "/contact",
-    translations: { en: emptyLabel(), ps: emptyLabel(), fa: emptyLabel() },
+const BUTTON =
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50";
+
+// ==========================================
+// EMPTY NAVBAR DATA
+// ==========================================
+
+const blank = () => ({
+  content: {
+    logo: "",
+    logoPublicId: "",
+    brand: {},
+    searchTitle: {},
+    searchSubtitle: {},
+    searchPlaceholder: {},
+    appointmentText: {},
+    appointmentLink: "",
   },
-  search: {
-    translations: {
-      en: emptySearch(),
-      ps: emptySearch(),
-      fa: emptySearch(),
-    },
-  },
-  items: [],
+  cards: [],
 });
 
-export default function NavigationAdmin() {
-  // ==========================================
-  // 2. COMPONENT STATE (Variables that update the screen)
-  // ==========================================
-  const [loading, setLoading] = useState(true); // Shows the loading spinner at the start
-  const [saving, setSaving] = useState(false); // Shows "Saving..." on the button
-  const [lang, setLang] = useState("en"); // Keeps track of the current language being edited
-  const [config, setConfig] = useState(defaultConfig); // Holds all the navigation data
+// ==========================================
+// TEXT HELPERS
+// ==========================================
 
-  // Theme + permission-check state (for Cloudinary widget)
-  const [theme, setTheme] = useState("light");
-  const [checking, setChecking] = useState(false);
+function plain(text) {
+  return String(text || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;|&#160;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  // Check if the current language is Right-To-Left (Pashto or Dari)
-  // We will only use this for text inputs!
-  const isRTL = lang === "ps" || lang === "fa";
-  const inputDirection = isRTL ? "rtl" : "ltr";
+// Keep all language codes, not just en/fa/ps.
+function allTranslations(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
 
-  const currentLangName = LANGS.find((l) => l.code === lang)?.label || lang;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(
+        ([code, text]) =>
+          /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(code) &&
+          typeof text === "string",
+      )
+      .map(([code, text]) => [code.toLowerCase(), plain(text)]),
+  );
+}
 
-  // ==========================================
-  // 3. LOAD DATA FROM DATABASE
-  // ==========================================
-  useEffect(() => {
-    // When the page first opens, fetch the navigation data from our API
-    axios
-      .get(API)
-      .then((res) => {
-        if (res.data) {
-          // Merge default empty config with the data from the database
-          setConfig({ ...defaultConfig(), ...res.data });
-        }
-      })
-      .catch(() => toast.error("Failed to load navigation configuration"))
-      .finally(() => setLoading(false)); // Stop the loading spinner
-  }, []);
+// ==========================================
+// NORMALIZE MONGODB DATA
+// ==========================================
 
-  // ==========================================
-  // 3b. THEME WATCHER (for Cloudinary widget)
-  // ==========================================
-  useEffect(() => {
-    const update = () => {
-      if (document.documentElement.classList.contains("dark")) {
-        setTheme("dark");
-      } else {
-        setTheme("light");
-      }
-    };
-    update();
-    const observer = new MutationObserver(update);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
+function normalize(data) {
+  const initial = blank();
+  const content = data?.content || {};
 
-  // ==========================================
-  // 4. HELPER FUNCTIONS
-  // ==========================================
+  for (const key of [
+    "brand",
+    "searchTitle",
+    "searchSubtitle",
+    "searchPlaceholder",
+    "appointmentText",
+  ]) {
+    initial.content[key] = allTranslations(content[key]);
+  }
 
-  // This helper makes it easier to update just one part of our config
-  const updateConfig = (key, value) => {
-    setConfig((prevConfig) => {
-      return { ...prevConfig, [key]: value };
-    });
-  };
+  initial.content.logo = content.logo || "";
+  initial.content.logoPublicId = content.logoPublicId || "";
+  initial.content.appointmentLink = content.appointmentLink || "";
 
-  // This cleans up URLs to make sure they start with a "/" and have no spaces
-  const cleanPath = (value) => {
-    let text = String(value || "")
-      .trim()
-      .replace(/[\s\\]/g, "");
-    if (!text) return "";
+  initial.cards = (Array.isArray(data?.cards) ? data.cards : []).map(
+    (card) => ({
+      id: card.id || crypto.randomUUID(),
+      label: allTranslations(card.label),
+      link: card.link || "",
+      parentId: card.parentId || "",
+      hasDropdown: card.hasDropdown === "true" ? "true" : "false",
+      showInFooter: card.showInFooter === "true" ? "true" : "false",
+    }),
+  );
 
-    // If it's an external link like https://google.com, leave it alone
-    if (text.match(/^(http|https|mailto|tel):/)) return text;
+  return initial;
+}
 
-    // Otherwise, make sure it starts with a slash
-    if (!text.startsWith("/") && !text.startsWith("#")) {
-      text = `/${text}`;
-    }
+// ==========================================
+// SAFE API RESPONSE
+// ==========================================
 
-    // Remove double slashes like "//about"
-    return text.replace(/\/\/+/g, "/");
-  };
+async function readJson(response) {
+  const contentType = response.headers.get("content-type") || "";
 
-  // Changes the language we are currently editing
-  const setLangAndStore = (code) => {
-    setLang(code);
-    try {
-      localStorage.setItem("admin-content-language", code);
-    } catch {}
-    window.dispatchEvent(
-      new CustomEvent("admin-language-change", {
-        detail: { languageId: code },
-      }),
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `Navbar API returned HTML (HTTP ${response.status}). Check ${API}.`,
     );
-  };
+  }
 
-  // ==========================================
-  // 5. VALIDATION (Check for errors before saving)
-  // ==========================================
-  const validateConfig = () => {
-    // Check if CTA has a label but no URL
-    const ctaLabel = config.cta?.translations?.[lang]?.label?.trim();
-    if (ctaLabel && !config.cta?.href?.trim()) {
-      toast.error("Error: CTA Button is missing a URL.");
-      return false;
-    }
+  const data = await response.json().catch(() => null);
 
-    // Check all Navigation Items
-    for (let i = 0; i < config.items.length; i++) {
-      const item = config.items[i];
-      const itemLabel = item.translations?.[lang]?.label?.trim();
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.message || `Navbar API error (${response.status})`);
+  }
 
-      if (!itemLabel) {
-        toast.error(
-          `Error: Link #${i + 1} is missing a name in ${currentLangName}.`,
-        );
-        return false;
-      }
+  return data;
+}
 
-      if (!item.href?.trim()) {
-        toast.error(`Error: Link #${i + 1} ("${itemLabel}") is missing a URL.`);
-        return false;
-      }
+// ==========================================
+// REUSABLE INPUT
+// ==========================================
 
-      // If dropdown is checked, check all its sub-links too
-      if (item.hasDropdown && item.children?.length > 0) {
-        for (let j = 0; j < item.children.length; j++) {
-          const sub = item.children[j];
-          const subLabel = sub.translations?.[lang]?.label?.trim();
+function TextField({ label, value, onChange, dir = "ltr", placeholder = "" }) {
+  return (
+    <label className="block min-w-0 space-y-2">
+      <span className="block text-sm font-semibold">{label}</span>
 
-          if (!subLabel) {
-            toast.error(
-              `Error: Sub-link #${j + 1} under "${itemLabel}" is missing a name.`,
-            );
-            return false;
+      <input
+        type="text"
+        dir={dir}
+        className={INPUT}
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  );
+}
+
+// ==========================================
+// NAVBAR ADMIN
+// ==========================================
+
+export default function NavigationAdmin() {
+  // Language comes from the shared provider.
+  // Do not render the Provider inside this page.
+  const { language, direction, languages } = useKlinikoLanguage();
+
+  const [draft, setDraft] = useState(blank);
+  const [version, setVersion] = useState(null);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [widgetReady, setWidgetReady] = useState(false);
+
+  const [apiReady, setApiReady] = useState(false);
+  const [warning, setWarning] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [expanded, setExpanded] = useState({});
+
+  const revision = useRef(0);
+  const requestId = useRef(0);
+  const widgetRef = useRef(null);
+  const isDark = document.documentElement.classList.contains("dark");
+  function cloudinaryStyles(isDark) {
+    return {
+      palette: isDark
+        ? {
+            window: "#091633",
+            windowBorder: "#35BDD0",
+            tabIcon: "#35BDD0",
+            menuIcons: "#BBCBE0",
+            textDark: "#FFFFFF",
+            textLight: "#FFFFFF",
+            link: "#35BDD0",
+            action: "#159BB1",
+            inactiveTabIcon: "#8EA3C3",
+            error: "#EF4444",
+            inProgress: "#35BDD0",
+            complete: "#10B981",
+            sourceBg: "#101E50",
           }
-          if (!sub.href?.trim()) {
-            toast.error(
-              `Error: Sub-link #${j + 1} under "${itemLabel}" is missing a URL.`,
-            );
-            return false;
-          }
-        }
-      }
-    }
+        : {
+            window: "#FFFFFF",
+            windowBorder: "#159BB1",
+            tabIcon: "#159BB1",
+            menuIcons: "#60738B",
+            textDark: "#101E50",
+            textLight: "#FFFFFF",
+            link: "#159BB1",
+            action: "#159BB1",
+            inactiveTabIcon: "#9BAABA",
+            error: "#EF4444",
+            inProgress: "#159BB1",
+            complete: "#10B981",
+            sourceBg: "#F1F8F5",
+          },
+    };
+  }
 
-    return true; // Everything is good!
-  };
+  const parents = draft.cards.filter((item) => !item.parentId);
 
-  // ==========================================
-  // 6. SAVE FUNCTION
-  // ==========================================
-  const save = async () => {
-    if (!validateConfig()) return; // Stop if validation failed
+  const languageName =
+    languages.find((item) => item.code === language)?.nativeName || language;
 
-    setSaving(true);
+  const translation = (field) => draft.content[field]?.[language] || "";
+
+  // ========================================
+  // LOAD NAVBAR
+  // ========================================
+
+  async function load() {
+    const id = ++requestId.current;
+
+    setLoading(true);
+    setApiReady(false);
+    setWarning("");
+
     try {
-      await axios.post(API, config);
-      toast.success("Navigation saved successfully");
+      const response = await fetch(API, {
+        cache: "no-store",
+      });
+
+      const result = await readJson(response);
+
+      if (id !== requestId.current) return;
+
+      // No MongoDB document = empty inputs.
+      setDraft(normalize(result.data || {}));
+      setVersion(result.version ?? null);
+      setDirty(false);
+      setApiReady(true);
+
+      revision.current = 0;
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to save navigation");
+      if (id !== requestId.current) return;
+
+      setDraft(blank());
+      setVersion(null);
+      setDirty(false);
+      setWarning(error.message);
     } finally {
-      setSaving(false);
+      if (id === requestId.current) {
+        setLoading(false);
+      }
     }
-  };
+  }
 
-  // ==========================================
-  // 7. IMAGE UPLOAD FUNCTIONS
-  // ==========================================
-  const uploadLogo = async () => {
-    if (!window.cloudinary)
-      return toast.error("Cloudinary is still loading...");
-    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  useEffect(() => {
+    void load();
 
-    // Permission check BEFORE opening widget
-    setChecking(true);
-    const allowed = await verifyUploadPermission();
-    setChecking(false);
-    if (!allowed) {
-      toast.error("You don't have permission to upload images.");
+    return () => {
+      requestId.current += 1;
+    };
+  }, []);
+
+  // ========================================
+  // WARN BEFORE LEAVING
+  // ========================================
+
+  useEffect(() => {
+    const warn = (event) => {
+      if (!dirty) return;
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warn);
+
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  useEffect(() => {
+    return () => widgetRef.current?.close?.();
+  }, []);
+
+  // ========================================
+  // EDIT HELPERS
+  // ========================================
+
+  function edit(update) {
+    revision.current += 1;
+    setDraft((old) => update(old));
+    setDirty(true);
+  }
+
+  function changeContent(field, value, translated = false) {
+    edit((old) => ({
+      ...old,
+
+      content: {
+        ...old.content,
+
+        [field]: translated
+          ? {
+              ...old.content[field],
+              [language]: value,
+            }
+          : value,
+      },
+    }));
+  }
+
+  function changeCard(id, field, value) {
+    edit((old) => ({
+      ...old,
+
+      cards: old.cards.map((card) =>
+        card.id === id
+          ? {
+              ...card,
+
+              [field]:
+                field === "label"
+                  ? {
+                      ...card.label,
+                      [language]: value,
+                    }
+                  : value,
+            }
+          : card,
+      ),
+    }));
+  }
+
+  // ========================================
+  // ADD PARENT / SUB-LINK
+  // ========================================
+
+  function addLink(parentId = "") {
+    if (draft.cards.length >= 50) {
+      return toast.error("Maximum 50 menu links allowed.");
+    }
+
+    const id = crypto.randomUUID();
+
+    edit((old) => ({
+      ...old,
+
+      cards: [
+        ...old.cards.map((item) =>
+          item.id === parentId
+            ? {
+                ...item,
+                hasDropdown: "true",
+              }
+            : item,
+        ),
+
+        {
+          id,
+          label: {},
+          link: "/",
+          parentId,
+          hasDropdown: "false",
+          showInFooter: "false",
+        },
+      ],
+    }));
+
+    setExpanded((old) => ({
+      ...old,
+      [parentId || id]: true,
+    }));
+  }
+
+  // ========================================
+  // DELETE MENU
+  // ========================================
+
+  function removeLink(id) {
+    if (!window.confirm("Delete this link and its sub-links?")) {
       return;
     }
 
-    window.cloudinary
-      .createUploadWidget(
+    edit((old) => ({
+      ...old,
+
+      cards: old.cards.filter((item) => item.id !== id && item.parentId !== id),
+    }));
+  }
+
+  // ========================================
+  // REORDER MENUS
+  // ========================================
+
+  function moveLink(id, delta) {
+    const current = draft.cards.find((item) => item.id === id);
+
+    if (!current) return;
+
+    const siblings = draft.cards.filter(
+      (item) => item.parentId === current.parentId,
+    );
+
+    const index = siblings.findIndex((item) => item.id === id);
+
+    const next = index + delta;
+
+    if (next < 0 || next >= siblings.length) {
+      return;
+    }
+
+    edit((old) => {
+      if (!current.parentId) {
+        // Keep sub-links attached to their parent.
+        const roots = old.cards.filter((item) => !item.parentId);
+
+        [roots[index], roots[next]] = [roots[next], roots[index]];
+
+        return {
+          ...old,
+
+          cards: roots.flatMap((root) => [
+            root,
+
+            ...old.cards.filter((item) => item.parentId === root.id),
+          ]),
+        };
+      }
+
+      const a = old.cards.findIndex((item) => item.id === siblings[index].id);
+
+      const b = old.cards.findIndex((item) => item.id === siblings[next].id);
+
+      const cards = [...old.cards];
+
+      [cards[a], cards[b]] = [cards[b], cards[a]];
+
+      return {
+        ...old,
+        cards,
+      };
+    });
+  }
+
+  // ========================================
+  // CLOUDINARY LOGO UPLOAD
+  // ========================================
+
+  async function uploadLogo() {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset || !window.cloudinary?.createUploadWidget) {
+      return toast.error("Cloudinary is not configured or ready.");
+    }
+
+    setUploading(true);
+
+    try {
+      // Verify admin permission.
+      await readJson(
+        await fetch(`${API}?check=edit`, {
+          cache: "no-store",
+        }),
+      );
+
+      widgetRef.current = window.cloudinary.createUploadWidget(
         {
           cloudName,
           uploadPreset,
-          folder: "bexon/logo",
+          folder: "kliniko/images",
           multiple: false,
+          sources: ["local", "url"],
+          maxFileSize: 5 * 1024 * 1024,
           clientAllowedFormats: ["jpg", "jpeg", "png", "webp", "svg"],
-          styles: cloudinaryStyles(theme),
+          styles: cloudinaryStyles(isDark),
         },
-        (err, result) => {
-          if (err) return toast.error("Upload failed");
+        (error, result) => {
+          if (error) {
+            setUploading(false);
+
+            return toast.error("Logo upload failed.");
+          }
+
           if (result?.event === "success") {
-            // If there's an old logo, delete it from Cloudinary
-            if (config.logoPublicId) {
-              axios
-                .post(API, { publicId: config.logoPublicId })
-                .catch(() => {});
+            if (result.info?.secure_url && result.info?.public_id) {
+              edit((old) => ({
+                ...old,
+
+                content: {
+                  ...old.content,
+
+                  logo: result.info.secure_url,
+
+                  logoPublicId: result.info.public_id,
+                },
+              }));
+
+              toast.success("Logo uploaded. Click Save Changes.");
             }
 
-            // Save the new logo URL to state
-            setConfig((prev) => ({
-              ...prev,
-              logo: result.info.secure_url,
-              logoPublicId: result.info.public_id,
-            }));
-            toast.success("Logo uploaded successfully");
+            setUploading(false);
+          }
+
+          if (["close", "abort"].includes(result?.event)) {
+            setUploading(false);
           }
         },
-      )
-      .open();
-  };
+      );
 
-  const removeLogo = async () => {
-    if (!confirm("Are you sure you want to remove the logo?")) return;
-    if (config.logoPublicId) {
-      try {
-        await axios.post(API, { publicId: config.logoPublicId });
-      } catch {}
+      widgetRef.current.open();
+    } catch (error) {
+      setUploading(false);
+      toast.error(error.message);
     }
-    setConfig((prev) => ({ ...prev, logo: "", logoPublicId: "" }));
-    toast.success("Logo removed");
-  };
-
-  // ==========================================
-  // 8. TEXT INPUT HANDLERS
-  // ==========================================
-  const setCtaLabel = (value) => {
-    updateConfig("cta", {
-      ...config.cta,
-      translations: {
-        ...config.cta.translations,
-        [lang]: { label: value },
-      },
-    });
-  };
-
-  const setSearchField = (field, value) => {
-    updateConfig("search", {
-      ...config.search,
-      translations: {
-        ...config.search.translations,
-        [lang]: {
-          ...emptySearch(),
-          ...config.search.translations?.[lang],
-          [field]: value,
-        },
-      },
-    });
-  };
-
-  // ==========================================
-  // 9. LINK MANAGEMENT HANDLERS
-  // ==========================================
-
-  // Add a new main link
-  const addLink = () => {
-    const newLink = {
-      id: generateId(),
-      href: "/",
-      hasDropdown: false,
-      showInFooter: false, // <-- Added for footer
-      translations: { en: emptyLabel(), ps: emptyLabel(), fa: emptyLabel() },
-      children: [],
-    };
-    updateConfig("items", [...config.items, newLink]);
-  };
-
-  // Add a sub-link inside a main link
-  const addSub = (index) => {
-    const allItems = [...config.items];
-    const newSubLink = {
-      id: generateId(),
-      href: "/",
-      showInFooter: false, // <-- Added for footer
-      translations: { en: emptyLabel(), ps: emptyLabel(), fa: emptyLabel() },
-    };
-    allItems[index].children.push(newSubLink);
-    updateConfig("items", allItems);
-  };
-
-  // Delete a link or sub-link
-  const remove = (index, isSub = false, parentIndex = null) => {
-    if (!confirm("Delete this link?")) return;
-    const allItems = [...config.items];
-
-    if (isSub) {
-      allItems[parentIndex].children.splice(index, 1);
-    } else {
-      allItems.splice(index, 1);
-    }
-    updateConfig("items", allItems);
-  };
-
-  // Move links up or down
-  const move = (index, direction, isSub = false, parentIndex = null) => {
-    const allItems = [...config.items];
-    const list = isSub ? allItems[parentIndex].children : allItems;
-
-    const newIndex = index + direction;
-    // Prevent moving out of bounds
-    if (newIndex < 0 || newIndex >= list.length) return;
-
-    // Swap the items
-    [list[index], list[newIndex]] = [list[newIndex], list[index]];
-    updateConfig("items", allItems);
-  };
-
-  // Update Main Link Text
-  const setItemLabel = (index, value) => {
-    const allItems = [...config.items];
-    allItems[index].translations[lang].label = value;
-    updateConfig("items", allItems);
-  };
-
-  // Update Main Link URL
-  const setItemHref = (index, value) => {
-    const allItems = [...config.items];
-    allItems[index].href = cleanPath(value);
-    updateConfig("items", allItems);
-  };
-
-  // Turn dropdown on/off
-  const setDropdown = (index, isChecked) => {
-    const allItems = [...config.items];
-    allItems[index].hasDropdown = isChecked;
-    updateConfig("items", allItems);
-  };
-
-  // Turn Footer on/off for MAIN link
-  const setFooterMain = (index, isChecked) => {
-    const allItems = [...config.items];
-    allItems[index].showInFooter = isChecked;
-    updateConfig("items", allItems);
-  };
-
-  // Update Sub-Link Text
-  const setSubLabel = (mainIndex, subIndex, value) => {
-    const allItems = [...config.items];
-    allItems[mainIndex].children[subIndex].translations[lang].label = value;
-    updateConfig("items", allItems);
-  };
-
-  // Update Sub-Link URL
-  const setSubHref = (mainIndex, subIndex, value) => {
-    const allItems = [...config.items];
-    allItems[mainIndex].children[subIndex].href = cleanPath(value);
-    updateConfig("items", allItems);
-  };
-
-  // Turn Footer on/off for SUB link
-  const setFooterSub = (mainIndex, subIndex, isChecked) => {
-    const allItems = [...config.items];
-    allItems[mainIndex].children[subIndex].showInFooter = isChecked;
-    updateConfig("items", allItems);
-  };
-
-  // ==========================================
-  // 10. RENDER UI
-  // ==========================================
-
-  // Reusable classes for our inputs to keep HTML clean
-  const inputCls =
-    "w-full rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3 text-sm outline-none transition focus:border-[var(--accent)] focus:ring-4 focus:ring-[var(--accent)]/10";
-  const labelCls = "mb-2 block text-sm font-semibold";
-
-  if (loading) {
-    return (
-      <div className="flex min-h-96 items-center justify-center">
-        <Spinner />
-      </div>
-    );
   }
 
-  const ctaLabel = config.cta?.translations?.[lang]?.label || "";
-  const search = { ...emptySearch(), ...config.search?.translations?.[lang] };
+  // ========================================
+  // SAVE TO MONGODB
+  // ========================================
+
+  async function save() {
+    if (!apiReady || saving || uploading || !dirty) {
+      return;
+    }
+
+    // English is required as a fallback.
+    for (const card of draft.cards) {
+      if (!card.label?.en?.trim()) {
+        return toast.error("Every menu needs an English name.");
+      }
+
+      const link = String(card.link || "").trim();
+
+      if (!link || !link.startsWith("/") || link.startsWith("//")) {
+        return toast.error(
+          "Every menu URL must start with /, for example /about.",
+        );
+      }
+    }
+
+    const startRevision = revision.current;
+
+    setSaving(true);
+
+    try {
+      const response = await fetch(API, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          ...draft,
+          version,
+        }),
+      });
+
+      const result = await readJson(response);
+
+      setVersion(result.version ?? null);
+
+      // Do not overwrite edits made during saving.
+      if (startRevision === revision.current) {
+        setDraft(normalize(result.data || draft));
+
+        setDirty(false);
+      }
+
+      toast.success("Navbar saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ========================================
+  // PAGE JSX
+  // ========================================
 
   return (
-    // Note: Removed dir={dir} here! The admin layout stays LTR always.
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      {/* Cloudinary Script */}
+    <main className="min-h-screen bg-[var(--background)] pb-20 text-[var(--foreground)]">
       <Script
         src="https://upload-widget.cloudinary.com/latest/global/all.js"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
+        onReady={() => setWidgetReady(true)}
       />
 
+      {/* SHARED DYNAMIC LANGUAGE BALL */}
+      <PublicLanguageBall />
+
       <div className="mx-auto max-w-6xl space-y-5">
-        {/* PAGE HEADER */}
-        <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-[var(--accent)] uppercase">
-              <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-              Site Structure
-            </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Navigation & Header
-            </h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              Logo, CTA, search text, and menu links
-            </p>
+        {/* HEADER */}
+        <header className="mb-6">
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold tracking-[0.2em] text-[var(--accent)] uppercase">
+            <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+            Site Structure
           </div>
 
-          <div className="flex flex-col gap-3 sm:items-end">
-            <AdminLanguageBall
-              language={lang}
-              onLanguageChange={setLangAndStore}
-            />
-            <div className="inline-flex flex-wrap gap-1.5 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent)]/5 p-1.5">
-              {LANGS.map((l) => (
-                <button
-                  key={l.code}
-                  type="button"
-                  onClick={() => setLangAndStore(l.code)}
-                  className={`min-h-10 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-                    lang === l.code
-                      ? "bg-[var(--accent)] text-white shadow-md"
-                      : "text-[var(--muted)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)]"
-                  }`}
-                >
-                  {l.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold sm:text-3xl">
+            Navigation &amp; Header
+          </h1>
+
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            Logo, CTA, search text, and menu links
+          </p>
         </header>
 
-        {/* GLOBAL SETTINGS (Logo, CTA, Search) */}
-        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
-          <div className="border-b border-[var(--border)] px-5 py-4 sm:px-6">
-            <h2 className="flex items-center gap-2 font-semibold">
-              <Settings size={18} className="text-[var(--accent)]" />
-              Global Settings ({lang.toUpperCase()})
-            </h2>
+        {loading ? (
+          <div className="flex min-h-96 items-center justify-center gap-3">
+            <Loader2 size={20} className="animate-spin text-[var(--accent)]" />
+            Loading Navbar...
           </div>
+        ) : (
+          <>
+            {/* API NOTICE */}
+            {warning && (
+              <div
+                className={`${PANEL} flex flex-wrap items-center justify-between gap-3 p-4`}
+              >
+                <div>
+                  <p className="text-sm font-semibold">
+                    Navbar API unavailable
+                  </p>
 
-          <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-2">
-            {/* Logo Upload Section */}
-            <div className="md:col-span-2">
-              <label className={labelCls}>Site Logo</label>
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
-                  {config.logo ? (
-                    <img
-                      src={config.logo}
-                      alt="Logo"
-                      className="max-h-full max-w-full object-contain"
-                    />
-                  ) : (
-                    <span className="text-xs text-[var(--muted)]">No logo</span>
-                  )}
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    {warning} — Empty inputs shown; saving is disabled.
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={uploadLogo}
-                    disabled={checking}
-                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#249b98] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {checking ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Upload size={16} />
-                    )}
-                    {checking
-                      ? "Checking..."
-                      : config.logo
-                        ? "Replace Logo"
-                        : "Upload Logo"}
-                  </button>
-                  {config.logo && (
-                    <button
-                      type="button"
-                      onClick={removeLogo}
-                      className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500 hover:text-white"
-                    >
-                      <Trash2 size={16} /> Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            {/* CTA Button Editor */}
-            <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-              <h3 className="text-sm font-bold text-[var(--accent)]">
-                CTA Button
-              </h3>
-              <div>
-                <label className={labelCls}>Label / Name</label>
-                <input
-                  dir={inputDirection}
-                  className={inputCls}
-                  value={ctaLabel}
-                  onChange={(e) => setCtaLabel(e.target.value)}
-                  placeholder="Let's Talk"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Link URL</label>
-                <input
-                  dir="ltr"
-                  className={inputCls}
-                  value={config.cta?.href || ""}
-                  onChange={(e) =>
-                    updateConfig("cta", {
-                      ...config.cta,
-                      href: cleanPath(e.target.value),
-                    })
-                  }
-                  placeholder="/contact"
-                />
-              </div>
-            </div>
-
-            {/* Search Box Editor */}
-            <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-              <h3 className="text-sm font-bold text-[var(--accent)]">
-                Search Box text
-              </h3>
-              {["heading", "subheading", "placeholder"].map((field) => (
-                <div key={field}>
-                  <label className={labelCls}>
-                    {field[0].toUpperCase() + field.slice(1)}
-                  </label>
-                  <input
-                    dir={inputDirection}
-                    className={inputCls}
-                    value={search[field] || ""}
-                    onChange={(e) => setSearchField(field, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* NAVIGATION LINKS SECTION */}
-        <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4 sm:px-6">
-            <h2 className="flex items-center gap-2 font-semibold">
-              <LinkIcon size={18} className="text-[var(--accent)]" />
-              Menu Links ({config.items.length})
-            </h2>
-            <button
-              type="button"
-              onClick={addLink}
-              className="inline-flex items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#249b98]"
-            >
-              <Plus size={16} /> Add Link
-            </button>
-          </div>
-
-          <div className="space-y-5 p-5 sm:p-6">
-            {config.items.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-[var(--border)] py-14 text-center">
-                <LayoutGrid
-                  className="mx-auto mb-3 text-[var(--muted)] opacity-50"
-                  size={40}
-                />
-                <p className="text-sm text-[var(--muted)]">
-                  No menu links added yet
-                </p>
-              </div>
-            ) : (
-              config.items.map((item, index) => (
-                <article
-                  key={item.id}
-                  className="overflow-hidden rounded-2xl border border-[var(--border)] shadow-sm"
+                <button
+                  type="button"
+                  className={BUTTON}
+                  onClick={() => void load()}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3">
-                    <span className="text-sm font-bold text-[var(--accent)]">
-                      Link #{index + 1}
-                    </span>
-                    <div className="flex items-center gap-2">
+                  <RefreshCw size={16} />
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* ==================================
+                GLOBAL SETTINGS
+            ================================== */}
+
+            <section className={PANEL}>
+              <div className="border-b border-[var(--border)] px-5 py-4 sm:px-6">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Settings size={18} className="text-[var(--accent)]" />
+                  Global Settings ({language.toUpperCase()})
+                </h2>
+              </div>
+
+              <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-2">
+                {/* SITE LOGO */}
+                <div className="md:col-span-2">
+                  <p className="mb-2 text-sm font-semibold">Site Logo</p>
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex h-20 w-40 items-center justify-center overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-3">
+                      {draft.content.logo ? (
+                        <img
+                          src={draft.content.logo}
+                          alt="Navbar logo"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-[var(--muted)]">
+                          No logo
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled={index === 0}
-                        onClick={() => move(index, -1)}
-                        className="rounded-lg border border-[var(--border)] p-1.5 disabled:opacity-30"
+                        className={BUTTON}
+                        // disabled={!apiReady || uploading || !widgetReady}
+                        onClick={uploadLogo}
                       >
-                        <ArrowLeft size={16} />
+                        {uploading ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Upload size={16} />
+                        )}
+
+                        {draft.content.logo ? "Replace Logo" : "Upload Logo"}
                       </button>
-                      <button
-                        type="button"
-                        disabled={index === config.items.length - 1}
-                        onClick={() => move(index, 1)}
-                        className="rounded-lg border border-[var(--border)] p-1.5 disabled:opacity-30"
-                      >
-                        <ArrowRight size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(index)}
-                        className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-500/10"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+
+                      {draft.content.logo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!window.confirm("Remove the logo?")) {
+                              return;
+                            }
+
+                            edit((old) => ({
+                              ...old,
+
+                              content: {
+                                ...old.content,
+                                logo: "",
+                                logoPublicId: "",
+                              },
+                            }));
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500 hover:text-white"
+                        >
+                          <Trash2 size={16} />
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-4 p-4 sm:p-5">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className={labelCls}>
-                          Label ({lang.toUpperCase()})
-                        </label>
-                        <input
-                          dir={inputDirection}
-                          className={inputCls}
-                          value={item.translations?.[lang]?.label || ""}
-                          onChange={(e) => setItemLabel(index, e.target.value)}
-                          placeholder="Example: About Us"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelCls}>URL</label>
-                        <input
-                          dir="ltr"
-                          className={inputCls}
-                          value={item.href || ""}
-                          onChange={(e) => setItemHref(index, e.target.value)}
-                          placeholder="/about"
-                        />
-                      </div>
-                    </div>
+                {/* WEBSITE NAME */}
+                <div className="md:col-span-2">
+                  <TextField
+                    label="Website Name"
+                    dir={direction}
+                    value={translation("brand")}
+                    onChange={(value) => changeContent("brand", value, true)}
+                    placeholder="Kliniko"
+                  />
+                </div>
 
-                    {/* NEW: Flex container for Checkboxes to keep them neat */}
-                    <div className="flex flex-wrap items-center gap-6">
-                      {/* Checkbox for Dropdown */}
-                      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded accent-[var(--accent)]"
-                          checked={!!item.hasDropdown}
-                          onChange={(e) => setDropdown(index, e.target.checked)}
-                        />
-                        Enable Dropdown (Sub-links)
-                      </label>
+                {/* CTA BUTTON */}
+                <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+                  <h3 className="text-sm font-bold text-[var(--accent)]">
+                    CTA Button
+                  </h3>
 
-                      {/* NEW: Checkbox for Footer */}
-                      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[var(--foreground)]">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded accent-[var(--accent)]"
-                          checked={!!item.showInFooter}
-                          onChange={(e) =>
-                            setFooterMain(index, e.target.checked)
+                  <TextField
+                    label="Label / Name"
+                    dir={direction}
+                    value={translation("appointmentText")}
+                    onChange={(value) =>
+                      changeContent("appointmentText", value, true)
+                    }
+                    placeholder="Make Appointment"
+                  />
+
+                  <TextField
+                    label="Link URL"
+                    value={draft.content.appointmentLink}
+                    onChange={(value) =>
+                      changeContent("appointmentLink", value)
+                    }
+                    placeholder="/appointment"
+                  />
+                </div>
+
+                {/* SEARCH BOX */}
+                <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+                  <h3 className="text-sm font-bold text-[var(--accent)]">
+                    Search Box Text
+                  </h3>
+
+                  {[
+                    ["searchTitle", "Heading"],
+                    ["searchSubtitle", "Subheading"],
+                    ["searchPlaceholder", "Placeholder"],
+                  ].map(([field, label]) => (
+                    <TextField
+                      key={field}
+                      label={label}
+                      dir={direction}
+                      value={translation(field)}
+                      onChange={(value) => changeContent(field, value, true)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ==================================
+                MENU LINKS
+            ================================== */}
+
+            <section className={PANEL}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4 sm:px-6">
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Link2 size={18} className="text-[var(--accent)]" />
+                  Menu Links ({parents.length})
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={() => addLink()}
+                  className={BUTTON}
+                >
+                  <Plus size={16} />
+                  Add Link
+                </button>
+              </div>
+
+              <div className="space-y-5 p-5 sm:p-6">
+                {parents.length === 0 && (
+                  <div className="rounded-2xl border-2 border-dashed border-[var(--border)] py-14 text-center">
+                    <LayoutGrid
+                      size={40}
+                      className="mx-auto mb-3 text-[var(--muted)] opacity-50"
+                    />
+
+                    <p className="text-sm text-[var(--muted)]">
+                      No menu links added yet
+                    </p>
+                  </div>
+                )}
+
+                {parents.map((parent, index) => {
+                  const children = draft.cards.filter(
+                    (item) => item.parentId === parent.id,
+                  );
+
+                  const open = expanded[parent.id] !== false;
+
+                  return (
+                    <article
+                      key={parent.id}
+                      className="overflow-hidden rounded-2xl border border-[var(--border)] shadow-sm"
+                    >
+                      {/* PARENT HEADER */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-soft)] px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpanded((old) => ({
+                              ...old,
+                              [parent.id]: !open,
+                            }))
                           }
-                        />
-                        Show in Footer
-                      </label>
-                    </div>
+                          className="flex items-center gap-2 text-sm font-bold text-[var(--accent)]"
+                        >
+                          <ChevronDown
+                            size={16}
+                            className={open ? "rotate-180" : ""}
+                          />
+                          Link #{index + 1}{" "}
+                          {parent.label?.en ? `— ${parent.label.en}` : ""}
+                        </button>
 
-                    {item.hasDropdown && (
-                      <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[var(--muted)]">
-                            Sub-links ({item.children?.length || 0})
-                          </span>
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => addSub(index)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
+                            aria-label="Move link left"
+                            disabled={index === 0}
+                            onClick={() => moveLink(parent.id, -1)}
+                            className="rounded-lg border border-[var(--border)] p-1.5 disabled:opacity-30"
                           >
-                            <Plus size={14} /> Add sub-link
+                            <ArrowLeft size={16} />
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label="Move link right"
+                            disabled={index === parents.length - 1}
+                            onClick={() => moveLink(parent.id, 1)}
+                            className="rounded-lg border border-[var(--border)] p-1.5 disabled:opacity-30"
+                          >
+                            <ArrowRight size={16} />
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label="Delete link"
+                            onClick={() => removeLink(parent.id)}
+                            className="rounded-lg px-2.5 py-1.5 text-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
+                      </div>
 
-                        {(item.children || []).length === 0 ? (
-                          <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-center text-xs text-[var(--muted)]">
-                            No sub-links added yet
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {item.children.map((sub, subIndex) => (
-                              <div
-                                key={sub.id}
-                                className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 sm:flex-nowrap"
-                              >
-                                <div className="flex flex-col">
-                                  <button
-                                    type="button"
-                                    disabled={subIndex === 0}
-                                    onClick={() =>
-                                      move(subIndex, -1, true, index)
-                                    }
-                                    className="disabled:opacity-30"
-                                  >
-                                    <ArrowLeft
-                                      size={14}
-                                      className="rotate-90"
-                                    />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      subIndex === item.children.length - 1
-                                    }
-                                    onClick={() =>
-                                      move(subIndex, 1, true, index)
-                                    }
-                                    className="disabled:opacity-30"
-                                  >
-                                    <ArrowRight
-                                      size={14}
-                                      className="rotate-90"
-                                    />
-                                  </button>
-                                </div>
+                      {open && (
+                        <div className="space-y-4 p-4 sm:p-5">
+                          {/* MAIN LINK INPUTS */}
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <TextField
+                              label={`Label (${language.toUpperCase()})`}
+                              dir={direction}
+                              value={parent.label?.[language] || ""}
+                              onChange={(value) =>
+                                changeCard(parent.id, "label", value)
+                              }
+                              placeholder="About Us"
+                            />
 
-                                <input
-                                  dir={inputDirection}
-                                  className="w-full flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] sm:w-auto"
-                                  placeholder="Sub-link Name"
-                                  value={sub.translations?.[lang]?.label || ""}
-                                  onChange={(e) =>
-                                    setSubLabel(index, subIndex, e.target.value)
+                            <TextField
+                              label="URL"
+                              value={parent.link}
+                              onChange={(value) =>
+                                changeCard(parent.id, "link", value)
+                              }
+                              placeholder="/about"
+                            />
+                          </div>
+
+                          {/* CHECKBOXES */}
+                          <div className="flex flex-wrap items-center gap-6">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[var(--accent)]"
+                                checked={parent.hasDropdown === "true"}
+                                onChange={(e) => {
+                                  if (!e.target.checked && children.length) {
+                                    toast.error(
+                                      "Remove sub-links before disabling dropdown.",
+                                    );
+                                    return;
                                   }
-                                />
-                                <input
-                                  dir="ltr"
-                                  className="w-full flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] sm:w-auto"
-                                  placeholder="/path"
-                                  value={sub.href || ""}
-                                  onChange={(e) =>
-                                    setSubHref(index, subIndex, e.target.value)
-                                  }
-                                />
 
-                                {/* NEW: Checkbox for Footer (Sub-links) */}
-                                <label
-                                  title="Show in Footer"
-                                  className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                                    sub.showInFooter
-                                      ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
-                                      : "border-[var(--border)] bg-[var(--surface-soft)] text-[var(--muted)] hover:text-[var(--foreground)]"
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    className="h-3.5 w-3.5 rounded accent-[var(--accent)]"
-                                    checked={!!sub.showInFooter}
-                                    onChange={(e) =>
-                                      setFooterSub(
-                                        index,
-                                        subIndex,
-                                        e.target.checked,
-                                      )
-                                    }
-                                  />
-                                  Footer
-                                </label>
+                                  changeCard(
+                                    parent.id,
+                                    "hasDropdown",
+                                    e.target.checked ? "true" : "false",
+                                  );
+                                }}
+                              />
+                              Enable Dropdown (Sub-links)
+                            </label>
+
+                            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[var(--accent)]"
+                                checked={parent.showInFooter === "true"}
+                                onChange={(e) =>
+                                  changeCard(
+                                    parent.id,
+                                    "showInFooter",
+                                    e.target.checked ? "true" : "false",
+                                  )
+                                }
+                              />
+                              Show in Footer
+                            </label>
+                          </div>
+
+                          {/* SUB-LINKS */}
+                          {parent.hasDropdown === "true" && (
+                            <div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)] p-4">
+                              <div className="mb-3 flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold text-[var(--muted)]">
+                                  Sub-links ({children.length})
+                                </span>
 
                                 <button
                                   type="button"
-                                  onClick={() => remove(subIndex, true, index)}
-                                  className="shrink-0 rounded-lg p-2 text-red-500 hover:bg-red-500/10"
+                                  onClick={() => addLink(parent.id)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)]/10 px-3 py-1.5 text-xs font-semibold text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
                                 >
-                                  <Trash2 size={16} />
+                                  <Plus size={14} />
+                                  Add sub-link
                                 </button>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </article>
-              ))
-            )}
 
-            <button
-              type="button"
-              onClick={addLink}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 bg-[var(--accent)]/5 py-4 text-sm font-bold text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
-            >
-              <Plus size={18} /> Add another link
-            </button>
-          </div>
-        </section>
+                              {children.length === 0 ? (
+                                <p className="rounded-xl border border-dashed border-[var(--border)] p-4 text-center text-xs text-[var(--muted)]">
+                                  No sub-links added yet
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {children.map((child, childIndex) => (
+                                    <div
+                                      key={child.id}
+                                      className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 sm:flex-nowrap"
+                                    >
+                                      {/* REORDER */}
+                                      <div className="flex flex-col">
+                                        <button
+                                          type="button"
+                                          aria-label="Move sub-link up"
+                                          disabled={childIndex === 0}
+                                          onClick={() => moveLink(child.id, -1)}
+                                          className="disabled:opacity-30"
+                                        >
+                                          <ArrowUp size={14} />
+                                        </button>
 
-        {/* BOTTOM STICKY SAVE BAR */}
-        <footer className="sticky bottom-3 z-40 flex flex-col justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center">
-          <p className="text-xs text-[var(--muted)]">
-            Editing Language:{" "}
-            <span className="font-semibold text-[var(--accent)]">
-              {currentLangName}
-            </span>
-            {" · "}
-            Total Links: {config.items.length}
-          </p>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={save}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-3 text-sm font-semibold text-white hover:bg-[#249b98] disabled:opacity-60"
-          >
-            {saving ? (
-              <>
-                <Loader2 size={17} className="animate-spin" /> Saving...
-              </>
-            ) : (
-              <>
-                <Save size={17} /> Save Changes
-              </>
-            )}
-          </button>
-        </footer>
+                                        <button
+                                          type="button"
+                                          aria-label="Move sub-link down"
+                                          disabled={
+                                            childIndex === children.length - 1
+                                          }
+                                          onClick={() => moveLink(child.id, 1)}
+                                          className="disabled:opacity-30"
+                                        >
+                                          <ArrowDown size={14} />
+                                        </button>
+                                      </div>
+
+                                      {/* TRANSLATED NAME */}
+                                      <input
+                                        dir={direction}
+                                        aria-label={`Sub-link label (${language})`}
+                                        className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] sm:w-auto"
+                                        placeholder="Sub-link name"
+                                        value={child.label?.[language] || ""}
+                                        onChange={(e) =>
+                                          changeCard(
+                                            child.id,
+                                            "label",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+
+                                      {/* URL */}
+                                      <input
+                                        dir="ltr"
+                                        aria-label="Sub-link URL"
+                                        className="w-full min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] sm:w-auto"
+                                        placeholder="/path"
+                                        value={child.link}
+                                        onChange={(e) =>
+                                          changeCard(
+                                            child.id,
+                                            "link",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+
+                                      {/* FOOTER */}
+                                      <label
+                                        className={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold ${
+                                          child.showInFooter === "true"
+                                            ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)]"
+                                            : "border-[var(--border)] bg-[var(--surface-soft)] text-[var(--muted)]"
+                                        }`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          className="h-3.5 w-3.5 accent-[var(--accent)]"
+                                          checked={
+                                            child.showInFooter === "true"
+                                          }
+                                          onChange={(e) =>
+                                            changeCard(
+                                              child.id,
+                                              "showInFooter",
+                                              e.target.checked
+                                                ? "true"
+                                                : "false",
+                                            )
+                                          }
+                                        />
+                                        Footer
+                                      </label>
+
+                                      {/* DELETE */}
+                                      <button
+                                        type="button"
+                                        aria-label="Delete sub-link"
+                                        onClick={() => removeLink(child.id)}
+                                        className="shrink-0 rounded-lg p-2 text-red-500 hover:bg-red-500/10"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+
+                {/* ADD ANOTHER LINK */}
+                <button
+                  type="button"
+                  onClick={() => addLink()}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--accent)]/30 bg-[var(--accent)]/5 py-4 text-sm font-bold text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white"
+                >
+                  <Plus size={18} />
+                  Add another link
+                </button>
+              </div>
+            </section>
+
+            {/* ==================================
+                STICKY SAVE BAR
+            ================================== */}
+
+            <footer className="sticky bottom-3 z-40 flex flex-col justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center">
+              <p className="text-xs text-[var(--muted)]">
+                Editing Language:{" "}
+                <span className="font-semibold text-[var(--accent)]">
+                  {languageName}
+                </span>
+                {" · "}
+                Total Links: {parents.length}
+                {" · "}
+                {!apiReady
+                  ? "API disconnected"
+                  : dirty
+                    ? "Unsaved changes"
+                    : version === null
+                      ? "Not saved yet"
+                      : "Saved"}
+              </p>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={saving || uploading}
+                  onClick={() => {
+                    if (!dirty || window.confirm("Discard unsaved changes?")) {
+                      void load();
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-semibold"
+                >
+                  <RefreshCw size={16} />
+                  Reload
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!apiReady || !dirty || saving || uploading}
+                  onClick={save}
+                  className={BUTTON}
+                >
+                  {saving ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Save size={16} />
+                  )}
+
+                  {saving ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </footer>
+          </>
+        )}
       </div>
-    </div>
+    </main>
   );
 }

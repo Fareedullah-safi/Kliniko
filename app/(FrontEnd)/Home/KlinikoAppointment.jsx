@@ -6,9 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import sanitizeHtml from "sanitize-html";
 
-// ==========================================
-// DEFAULT DATA
-// ==========================================
+const API = "/api/admin/kliniko-appointments";
 
 const DEFAULT_IMAGE =
   "https://html.vecurosoft.com/kliniko/demo/assets/img/bg/appoint-bg-h1.jpg";
@@ -25,109 +23,91 @@ const DEPARTMENTS = [
   "Diagnostics",
 ];
 
-const DOCTORS = [
-  "Dr. Arman Hossain",
-  "Dr. Sofia Rahman",
-  "Dr. Neil Chowdhury",
-  "Dr. Farhana Zayed",
-];
-
 const FIELD_CLASS =
-  "h-[54px] w-full min-w-0 rounded-[8px] border border-[#168DB1] bg-transparent px-4 text-[14px] font-medium text-white outline-none transition-colors duration-200 placeholder:text-[#E3EBFF]/75 focus:border-[#49D5E6] focus:ring-2 focus:ring-[#168DB1]/25 sm:h-[58px] sm:text-[15px]";
+  "h-[54px] w-full min-w-0 rounded-[8px] border border-[#168DB1] " +
+  "bg-transparent px-4 text-[14px] font-medium text-white outline-none " +
+  "transition-colors duration-200 placeholder:text-[#E3EBFF]/75 " +
+  "focus:border-[#49D5E6] focus:ring-2 focus:ring-[#168DB1]/25 " +
+  "sm:h-[58px] sm:text-[15px]";
 
-// ==========================================
-// FRAMER MOTION SCROLL ANIMATION
-// ==========================================
+const OPTION_CLASS = "bg-[#101E50] text-white";
 
-const EASE = [0.22, 1, 0.36, 1];
+function reveal(delay = 0) {
+  return {
+    initial: { opacity: 0, y: 30 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.15 },
+    transition: {
+      duration: 0.7,
+      delay,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  };
+}
 
-const SCROLL = {
-  once: true,
-  amount: 0.15,
-};
+// Keep the formatting from your CMS headings and button text.
+function rich(value, fallback) {
+  const source = typeof value === "string" ? value : value?.en;
 
-const reveal = (delay = 0) => ({
-  initial: { opacity: 0, y: 30 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: SCROLL,
-  transition: {
-    duration: 0.7,
-    delay,
-    ease: EASE,
-  },
-});
+  if (typeof source !== "string" || !source.trim()) return fallback;
 
-// ==========================================
-// SAFE RICH TEXT
-// ==========================================
-
-function rich(value) {
-  if (typeof value !== "string") return "";
-
-  const html = value
+  const html = source
     .replace(/&(?:nbsp|#160|#xA0);/gi, " ")
     .replace(/\u00a0/g, " ")
     .replace(/[\u200b-\u200d\ufeff]/g, "")
     .replace(/<p\b[^>]*>\s*<\/p>/gi, "")
     .replace(/<\/(?:p|div|h[1-6])>\s*<(?:p|div|h[1-6])\b[^>]*>/gi, "<br>");
 
-  return sanitizeHtml(html, {
-    allowedTags: ["span", "strong", "b", "em", "i", "u", "s", "br"],
-
-    allowedAttributes: {
-      span: ["style"],
-    },
-
-    allowedStyles: {
-      span: {
-        color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
-        "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+  return (
+    sanitizeHtml(html, {
+      allowedTags: ["span", "strong", "b", "em", "i", "u", "s", "br"],
+      allowedAttributes: { span: ["style"] },
+      allowedStyles: {
+        span: {
+          color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+          "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+        },
       },
-    },
-  }).trim();
+    }).trim() || fallback
+  );
 }
 
-// ==========================================
-// SAFE URL HELPERS
-// ==========================================
-
 function unwrapUrl(value) {
-  const input = typeof value === "string" ? value.trim() : "";
+  if (typeof value !== "string") return "";
 
+  const input = value.trim();
   const match = /^\[[^\]]+\]\((https?:\/\/[^)]+)\)$/.exec(input);
 
   return match ? match[1] : input;
 }
 
-function safeImage(value) {
-  const url = unwrapUrl(value);
+function getImage(value) {
+  const input = unwrapUrl(value);
 
-  if (url.startsWith("/") && !url.startsWith("//") && !/[\\\s"']/.test(url)) {
-    return url;
+  if (
+    input.startsWith("/") &&
+    !input.startsWith("//") &&
+    !/[\\\s"']/.test(input)
+  ) {
+    return input;
   }
 
   try {
-    const parsed = new URL(url);
+    const url = new URL(input);
 
-    if (parsed.protocol === "https:" && !parsed.username && !parsed.password) {
-      return url;
+    if (url.protocol === "https:" && !url.username && !url.password) {
+      return url.href;
     }
-  } catch {}
+  } catch {
+    return DEFAULT_IMAGE;
+  }
 
   return DEFAULT_IMAGE;
 }
 
-// ==========================================
-// DYNAMIC YOUTUBE VIDEO
-// ==========================================
-
-function youtubeId(value) {
-  const input = unwrapUrl(value);
-
-  if (!input) return DEFAULT_VIDEO_ID;
-
+function getVideoId(value) {
   try {
-    const url = new URL(input);
+    const url = new URL(unwrapUrl(value));
     const host = url.hostname.toLowerCase();
 
     let id = "";
@@ -155,10 +135,6 @@ function youtubeId(value) {
   }
 }
 
-// ==========================================
-// SECTION MEDICAL ICON
-// ==========================================
-
 function SectionMark() {
   return (
     <svg
@@ -182,15 +158,10 @@ function SectionMark() {
           strokeWidth="2.5"
         />
       ))}
-
       <circle cx="16" cy="16" r="2" fill="currentColor" />
     </svg>
   );
 }
-
-// ==========================================
-// ORIGINAL MOLECULAR BACKGROUND
-// ==========================================
 
 const POINTS = [
   [15, 85],
@@ -231,7 +202,7 @@ const EDGES = [
   [10, 14],
 ];
 
-function MedicalMolecules({ className = "" }) {
+function MedicalMolecules({ className }) {
   return (
     <svg
       viewBox="0 0 450 350"
@@ -240,13 +211,13 @@ function MedicalMolecules({ className = "" }) {
       className={`pointer-events-none absolute text-[#4B7BAE] ${className}`}
     >
       <g stroke="currentColor" strokeWidth="2.3" strokeOpacity="0.65">
-        {EDGES.map(([a, b], index) => (
+        {EDGES.map(([start, end]) => (
           <line
-            key={index}
-            x1={POINTS[a][0]}
-            y1={POINTS[a][1]}
-            x2={POINTS[b][0]}
-            y2={POINTS[b][1]}
+            key={`${start}-${end}`}
+            x1={POINTS[start][0]}
+            y1={POINTS[start][1]}
+            x2={POINTS[end][0]}
+            y2={POINTS[end][1]}
           />
         ))}
       </g>
@@ -260,19 +231,14 @@ function MedicalMolecules({ className = "" }) {
   );
 }
 
-// ==========================================
-// CONTACT DETAILS
-// ==========================================
-
 function ContactDetail({ icon: Icon, caption, text }) {
   return (
     <div className="flex min-w-0 items-center gap-4">
-      <div className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[7px] bg-[#179CB5] text-white sm:h-[58px] sm:w-[58px]">
+      <div className="relative flex size-[52px] shrink-0 items-center justify-center rounded-[7px] bg-[#179CB5] text-white sm:size-[58px]">
         <span
           aria-hidden="true"
           className="pointer-events-none absolute -inset-[4px] rounded-[9px] border border-dashed border-[#179CB5]"
         />
-
         <Icon size={25} strokeWidth={2.2} aria-hidden="true" />
       </div>
 
@@ -280,7 +246,6 @@ function ContactDetail({ icon: Icon, caption, text }) {
         <p className="text-[14px] leading-6 font-semibold text-white/90">
           {caption}
         </p>
-
         <p className="text-[17px] leading-[1.4] font-bold break-words text-white sm:text-[19px]">
           {text}
         </p>
@@ -289,47 +254,34 @@ function ContactDetail({ icon: Icon, caption, text }) {
   );
 }
 
-// ==========================================
-// DYNAMIC YOUTUBE VIDEO POPUP
-// ==========================================
-
-function VideoDialog({ onClose, videoId }) {
+function VideoDialog({ videoId, setVideoOpen }) {
   const closeRef = useRef(null);
 
   useEffect(() => {
+    const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
 
-    const previousFocus = document.activeElement;
-
     document.body.style.overflow = "hidden";
-
     closeRef.current?.focus();
 
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
+    function handleEscape(event) {
+      if (event.key === "Escape") setVideoOpen(false);
+    }
 
-    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
       document.body.style.overflow = previousOverflow;
-
-      document.removeEventListener("keydown", onKeyDown);
-
+      document.removeEventListener("keydown", handleEscape);
       previousFocus?.focus?.();
     };
-  }, [onClose]);
+  }, [setVideoOpen]);
 
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#050C20]/90 p-4 sm:p-6"
-      role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
+        if (event.target === event.currentTarget) setVideoOpen(false);
       }}
     >
       <div
@@ -341,9 +293,9 @@ function VideoDialog({ onClose, videoId }) {
         <button
           ref={closeRef}
           type="button"
-          onClick={onClose}
+          onClick={() => setVideoOpen(false)}
           aria-label="Close video"
-          className="mb-3 ml-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#101E50] transition hover:bg-[#1BA1B8] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="ms-auto mb-3 grid size-11 place-items-center rounded-full bg-white text-[#101E50] transition hover:bg-[#1BA1B8] hover:text-white"
         >
           <X size={23} />
         </button>
@@ -352,7 +304,7 @@ function VideoDialog({ onClose, videoId }) {
           <iframe
             title="Kliniko appointment video"
             src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&playsinline=1&rel=0`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow="autoplay; encrypted-media; picture-in-picture"
             referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
             className="h-full w-full border-0"
@@ -373,210 +325,140 @@ function VideoDialog({ onClose, videoId }) {
   );
 }
 
-// ==========================================
-// MAIN APPOINTMENT COMPONENT
-// MONGODB + FRAMER MOTION
-// ==========================================
+async function saveAppointment(fields) {
+  const response = await fetch(API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
 
-export default function KlinikoAppointment({ data = {}, onAppointmentSubmit }) {
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok || !result?.success) {
+    throw new Error(
+      result?.message ||
+        `Could not submit the request (HTTP ${response.status}).`,
+    );
+  }
+
+  return result;
+}
+
+export default function KlinikoAppointment({
+  data = {},
+  doctors = [],
+  onAppointmentSubmit = saveAppointment,
+}) {
   const [videoOpen, setVideoOpen] = useState(false);
-
-  const [mounted, setMounted] = useState(false);
-
   const [submitting, setSubmitting] = useState(false);
-
   const [feedback, setFeedback] = useState(null);
+  const sendingRef = useRef(false);
 
-  const videoButtonRef = useRef(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // ========================================
-  // LOAD MONGODB CONTENT
-  // ========================================
-
-  const badge = rich(data?.badge?.en || "Appointment");
-
-  const title = rich(data?.title?.en || "Make An Appointment For Consulting");
-
-  const buttonText = rich(data?.buttonText?.en || "Make An Appointment");
+  const badge = rich(data.badge, "Appointment");
+  const title = rich(data.title, "Make An Appointment For Consulting");
+  const buttonText = rich(data.buttonText, "Make An Appointment");
 
   const phone =
-    typeof data?.phone === "string" && data.phone.trim()
+    typeof data.phone === "string" && data.phone.trim()
       ? data.phone.trim()
       : DEFAULT_PHONE;
 
-  const image = safeImage(data?.image);
+  const image = getImage(data.image);
+  const videoId = getVideoId(data.videoLink);
+  const disabled = submitting || doctors.length === 0;
 
-  const videoId = youtubeId(data?.videoLink);
-
-  // ========================================
-  // CLOSE VIDEO
-  // ========================================
-
-  const closeVideo = () => {
-    setVideoOpen(false);
-
-    requestAnimationFrame(() => {
-      videoButtonRef.current?.focus();
-    });
-  };
-
-  // ========================================
-  // ORIGINAL FORM SUBMISSION LOGIC
-  // ========================================
-
-  const handleSubmit = async (event) => {
+  async function handleSubmit(event) {
     event.preventDefault();
 
-    const form = event.currentTarget;
+    if (sendingRef.current || doctors.length === 0) return;
 
+    const form = event.currentTarget;
     const fields = Object.fromEntries(new FormData(form));
 
-    setFeedback(null);
-
-    if (typeof onAppointmentSubmit !== "function") {
-      setFeedback({
-        type: "info",
-        message:
-          "This form is a frontend demo. Connect your appointment API to receive requests.",
-      });
-
-      return;
-    }
-
+    sendingRef.current = true;
     setSubmitting(true);
+    setFeedback(null);
 
     try {
       const result = await onAppointmentSubmit(fields);
 
       if (result?.success === false) {
-        throw new Error(result.message || "Unable to submit the request.");
+        throw new Error(result.message || "Could not submit your request.");
       }
 
+      form.reset();
       setFeedback({
-        type: "success",
+        success: true,
         message: "Your appointment request has been submitted.",
       });
-
-      form.reset();
     } catch (error) {
       setFeedback({
-        type: "error",
-        message: error?.message || "Something went wrong. Please try again.",
+        success: false,
+        message:
+          error.message || "Could not submit your request. Please try again.",
       });
     } finally {
+      sendingRef.current = false;
       setSubmitting(false);
     }
-  };
-
-  // ========================================
-  // JSX
-  // ========================================
+  }
 
   return (
     <section
       aria-labelledby="kliniko-appointment-title"
       className="relative isolate overflow-hidden bg-[#101E50]"
     >
-      {/* ORIGINAL TWO-COLUMN LAYOUT */}
       <div className="grid w-full grid-cols-1 lg:grid-cols-[34%_66%]">
-        {/* ==================================
-            LEFT MEDICAL IMAGE
-            NEW SCROLL ANIMATION
-        ================================== */}
-
         <motion.div
-          {...reveal(0)}
+          {...reveal()}
           className="relative isolate min-h-[340px] overflow-hidden bg-[#233D67] bg-cover bg-center sm:min-h-[460px] lg:min-h-full"
-          style={{
-            backgroundImage: `url("${image}")`,
-          }}
+          style={{ backgroundImage: `url("${image}")` }}
         >
-          {/* ORIGINAL IMAGE OVERLAY */}
           <div className="pointer-events-none absolute inset-0 bg-[#071D49]/10" />
 
-          {/* VIDEO PLAY BUTTON */}
           <div className="absolute inset-0 flex items-center justify-center">
             <motion.button
-              ref={videoButtonRef}
               type="button"
-              onClick={() => setVideoOpen(true)}
               aria-label="Play appointment video"
-              whileHover={{
-                scale: 1.1,
-              }}
-              whileTap={{
-                scale: 0.94,
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 19,
-              }}
-              className="group relative flex h-[88px] w-[88px] cursor-pointer items-center justify-center rounded-full border border-white/85 bg-white/20 text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:h-[105px] sm:w-[105px]"
+              onClick={() => setVideoOpen(true)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.94 }}
+              transition={{ type: "spring", stiffness: 300, damping: 19 }}
+              className="group relative grid size-[88px] cursor-pointer place-items-center rounded-full border border-white/85 bg-white/20 text-white shadow-[0_10px_28px_rgba(0,0,0,0.18)] backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:size-[105px]"
             >
-              <span className="pointer-events-none absolute -inset-[8px] rounded-full border border-white/35" />
-
-              <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-[#6254ED] via-[#347DCE] to-[#139DB3] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-
+              <span className="pointer-events-none absolute -inset-2 rounded-full border border-white/35" />
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-[#6254ED] via-[#347DCE] to-[#139DB3] opacity-0 transition-opacity group-hover:opacity-100" />
               <Play
                 size={30}
                 fill="currentColor"
                 strokeWidth={1.5}
                 aria-hidden="true"
-                className="relative z-10 ml-1.5"
+                className="relative z-10 ms-1.5"
               />
             </motion.button>
           </div>
         </motion.div>
 
-        {/* ==================================
-            RIGHT APPOINTMENT PANEL
-        ================================== */}
-
         <div className="relative isolate overflow-hidden bg-[#101E50]">
-          {/* ORIGINAL MOLECULES */}
-          <MedicalMolecules className="-top-32 -right-24 h-[350px] w-[480px] opacity-[0.2]" />
-
+          <MedicalMolecules className="-top-32 -right-24 h-[350px] w-[480px] opacity-20" />
           <MedicalMolecules className="-bottom-44 -left-24 h-[380px] w-[510px] rotate-180 opacity-[0.16]" />
 
           <div className="relative z-10 mx-auto flex h-full w-full max-w-[1540px] items-center px-6 py-16 sm:px-10 sm:py-20 lg:px-12 lg:py-24 2xl:px-6 2xl:py-[110px]">
             <div className="mx-auto w-full max-w-[675px]">
-              {/* ==================================
-                  BADGE SCROLL ANIMATION
-              ================================== */}
-
               <motion.div {...reveal(0.08)} className="flex items-center gap-3">
                 <SectionMark />
-
                 <span
                   className="text-[17px] font-semibold text-white sm:text-[18px]"
-                  dangerouslySetInnerHTML={{
-                    __html: badge,
-                  }}
+                  dangerouslySetInnerHTML={{ __html: badge }}
                 />
               </motion.div>
-
-              {/* ==================================
-                  TITLE SCROLL ANIMATION
-              ================================== */}
 
               <motion.h2
                 {...reveal(0.16)}
                 id="kliniko-appointment-title"
                 className="mt-5 max-w-[670px] text-[clamp(2.1rem,3vw,3.5rem)] leading-[1.2] font-bold tracking-[-0.035em] text-white"
-                dangerouslySetInnerHTML={{
-                  __html: title,
-                }}
+                dangerouslySetInnerHTML={{ __html: title }}
               />
-
-              {/* ==================================
-                  CONTACT DETAILS
-                  STAGGERED SCROLL ANIMATION
-              ================================== */}
 
               <div className="mt-9 grid grid-cols-1 gap-7 sm:mt-11 sm:grid-cols-2 sm:gap-5">
                 <motion.div {...reveal(0.22)}>
@@ -596,78 +478,53 @@ export default function KlinikoAppointment({ data = {}, onAppointmentSubmit }) {
                 </motion.div>
               </div>
 
-              {/* ==================================
-                  APPOINTMENT FORM
-                  SCROLL ANIMATION
-                  ORIGINAL INPUT LOGIC
-              ================================== */}
-
               <motion.form
                 {...reveal(0.34)}
                 onSubmit={handleSubmit}
+                aria-busy={submitting}
                 className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2"
               >
-                {/* NAME */}
-                <label className="sr-only" htmlFor="appointment-name">
-                  Your Name
-                </label>
-
                 <input
-                  id="appointment-name"
+                  aria-label="Your name"
                   name="name"
                   type="text"
-                  required
                   autoComplete="name"
-                  maxLength={100}
                   placeholder="Your Name"
+                  maxLength={100}
+                  required
                   className={FIELD_CLASS}
                 />
 
-                {/* EMAIL */}
-                <label className="sr-only" htmlFor="appointment-email">
-                  Email Address
-                </label>
-
                 <input
-                  id="appointment-email"
+                  aria-label="Email address"
                   name="email"
                   type="email"
-                  required
                   autoComplete="email"
-                  maxLength={254}
                   placeholder="Email Address"
+                  maxLength={254}
+                  required
                   className={FIELD_CLASS}
                 />
-
-                {/* PHONE */}
-                <label className="sr-only" htmlFor="appointment-phone">
-                  Phone Number
-                </label>
 
                 <input
-                  id="appointment-phone"
+                  aria-label="Phone number"
                   name="phone"
                   type="tel"
-                  required
                   autoComplete="tel"
-                  maxLength={30}
                   placeholder="Phone Number"
+                  maxLength={30}
+                  required
                   className={FIELD_CLASS}
                 />
 
-                {/* DEPARTMENT */}
-                <label className="sr-only" htmlFor="appointment-department">
-                  Select Department
-                </label>
-
                 <select
-                  id="appointment-department"
+                  aria-label="Department"
                   name="department"
-                  required
                   defaultValue=""
+                  required
                   className={`${FIELD_CLASS} cursor-pointer`}
                 >
-                  <option value="" disabled className="bg-[#101E50]">
+                  <option value="" disabled className={OPTION_CLASS}>
                     Select Department
                   </option>
 
@@ -675,126 +532,82 @@ export default function KlinikoAppointment({ data = {}, onAppointmentSubmit }) {
                     <option
                       key={department}
                       value={department}
-                      className="bg-[#101E50] text-white"
+                      className={OPTION_CLASS}
                     >
                       {department}
                     </option>
                   ))}
                 </select>
 
-                {/* DOCTOR */}
-                <label className="sr-only" htmlFor="appointment-doctor">
-                  Select Doctor
-                </label>
-
                 <select
-                  id="appointment-doctor"
+                  aria-label="Doctor"
                   name="doctor"
-                  required
                   defaultValue=""
-                  className={`${FIELD_CLASS} cursor-pointer`}
+                  required
+                  disabled={doctors.length === 0}
+                  className={`${FIELD_CLASS} cursor-pointer disabled:cursor-not-allowed`}
                 >
-                  <option value="" disabled className="bg-[#101E50]">
-                    Select Doctor
+                  <option value="" disabled className={OPTION_CLASS}>
+                    {doctors.length ? "Select Doctor" : "No doctors available"}
                   </option>
 
-                  {DOCTORS.map((doctor) => (
+                  {doctors.map((doctor) => (
                     <option
-                      key={doctor}
-                      value={doctor}
-                      className="bg-[#101E50] text-white"
+                      key={doctor.id}
+                      value={doctor.id}
+                      className={OPTION_CLASS}
                     >
-                      {doctor}
+                      {doctor.name}
                     </option>
                   ))}
                 </select>
 
-                {/* DATE */}
-                <label className="sr-only" htmlFor="appointment-date">
-                  Appointment Date
-                </label>
-
                 <input
-                  id="appointment-date"
+                  aria-label="Appointment date"
                   name="date"
                   type="date"
                   required
+                  style={{ colorScheme: "dark" }}
                   className={FIELD_CLASS}
-                  style={{
-                    colorScheme: "dark",
-                  }}
                 />
 
-                {/* MESSAGE */}
-                <label className="sr-only" htmlFor="appointment-message">
-                  Type Your Message
-                </label>
-
                 <textarea
-                  id="appointment-message"
+                  aria-label="Message"
                   name="message"
+                  placeholder="Type Your Message"
                   rows={4}
                   maxLength={1500}
-                  placeholder="Type Your Message"
                   className={`${FIELD_CLASS} h-auto min-h-[116px] resize-y py-4 sm:col-span-2`}
                 />
 
-                {/* ==================================
-                    SUBMIT BUTTON
-                ================================== */}
-
                 <motion.button
                   type="submit"
-                  disabled={submitting}
-                  whileHover={
-                    submitting
-                      ? undefined
-                      : {
-                          y: -3,
-                          scale: 1.01,
-                        }
-                  }
-                  whileTap={
-                    submitting
-                      ? undefined
-                      : {
-                          scale: 0.985,
-                        }
-                  }
-                  transition={{
-                    type: "spring",
-                    stiffness: 320,
-                    damping: 24,
-                  }}
-                  className="group relative mt-2 flex min-h-[58px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#159BB1] px-6 text-[15px] font-bold text-white shadow-[0_12px_22px_rgba(0,0,0,0.08)] outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#101E50] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 sm:mt-3"
+                  disabled={disabled}
+                  whileHover={disabled ? undefined : { y: -3, scale: 1.01 }}
+                  whileTap={disabled ? undefined : { scale: 0.985 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 24 }}
+                  className="group relative mt-2 flex min-h-[58px] w-full cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[#159BB1] px-6 text-[15px] font-bold text-white shadow-[0_12px_22px_rgba(0,0,0,0.08)] focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 sm:mt-3"
                 >
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#6255EC] via-[#327BD9] to-[#139DB3] opacity-0 transition-opacity duration-500 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#6255EC] via-[#327BD9] to-[#139DB3] opacity-0 transition-opacity duration-500 group-hover:opacity-100"
                   />
 
-                  <span className="relative z-10">
-                    {submitting ? (
-                      "Sending Request..."
-                    ) : (
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: buttonText,
-                        }}
-                      />
-                    )}
-                  </span>
+                  {submitting ? (
+                    <span className="relative">Sending Request...</span>
+                  ) : (
+                    <span
+                      className="relative"
+                      dangerouslySetInnerHTML={{ __html: buttonText }}
+                    />
+                  )}
                 </motion.button>
 
-                {/* FORM FEEDBACK */}
                 {feedback && (
                   <p
                     role="status"
-                    aria-live="polite"
-                    className={`text-[14px] leading-6 sm:col-span-2 ${
-                      feedback.type === "error"
-                        ? "text-[#FFC7C7]"
-                        : "text-[#BDEEF6]"
+                    className={`text-sm leading-6 sm:col-span-2 ${
+                      feedback.success ? "text-[#BDEEF6]" : "text-[#FFC7C7]"
                     }`}
                   >
                     {feedback.message}
@@ -806,9 +619,8 @@ export default function KlinikoAppointment({ data = {}, onAppointmentSubmit }) {
         </div>
       </div>
 
-      {/* VIDEO MODAL */}
-      {mounted && videoOpen && (
-        <VideoDialog onClose={closeVideo} videoId={videoId} />
+      {videoOpen && (
+        <VideoDialog videoId={videoId} setVideoOpen={setVideoOpen} />
       )}
     </section>
   );

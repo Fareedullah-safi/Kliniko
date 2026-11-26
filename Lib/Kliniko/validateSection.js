@@ -1,113 +1,48 @@
 import sanitizeHtml from "sanitize-html";
 
-// Server-side validation for Kliniko CMS.
-// Do not import this file into client components.
-
-// ==========================================
-// LIMITS
-// ==========================================
-
 const MAX_CARDS = 50;
-const MAX_RICH_LENGTH = 10_000;
-const MAX_TEXT_LENGTH = 2_000;
-const MAX_PUBLIC_ID_LENGTH = 250;
-const MAX_IMAGE_URL_LENGTH = 2_000;
+const MAX_RICH_LENGTH = 10000;
 
-// ==========================================
-// SAFE RICH TEXT CONFIGURATION
-// ==========================================
+const cleanHtml = (html) =>
+  sanitizeHtml(html, {
+    allowedTags: [
+      ...new Set([...sanitizeHtml.defaults.allowedTags, "span", "h1", "h2"]),
+    ],
 
-const HTML_OPTIONS = {
-  allowedTags: [
-    "p",
-    "br",
-    "div",
-    "span",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "strong",
-    "b",
-    "em",
-    "i",
-    "u",
-    "s",
-    "sub",
-    "sup",
-    "ul",
-    "ol",
-    "li",
-    "blockquote",
-    "a",
-  ],
-
-  allowedAttributes: {
-    a: ["href", "title", "target", "rel", "class", "style"],
-    "*": ["class", "style"],
-  },
-
-  allowedClasses: {
-    "*": [/^ql-(?:align|size|indent|direction)-[a-z0-9-]+$/i],
-  },
-
-  allowedStyles: {
-    "*": {
-      color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
-      "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
-      "text-align": [/^(?:left|right|center|justify)$/],
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      "*": ["style"],
+      a: ["href", "title", "target", "rel"],
     },
-  },
 
-  allowedSchemes: ["http", "https", "mailto", "tel"],
-
-  transformTags: {
-    a: (_tagName, attributes) => {
-      const safeAttributes = {
-        ...attributes,
-      };
-
-      if (safeAttributes.target === "_blank") {
-        safeAttributes.rel = "noopener noreferrer";
-      } else {
-        delete safeAttributes.target;
-        delete safeAttributes.rel;
-      }
-
-      return {
-        tagName: "a",
-        attribs: safeAttributes,
-      };
+    allowedClasses: {
+      "*": [/^ql-(?:align|size|indent)-[a-z0-9-]+$/],
     },
-  },
-};
 
-// ==========================================
-// OBJECT HELPERS
-// ==========================================
+    allowedStyles: {
+      "*": {
+        color: [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d.,\s%]+\)$/i],
 
-const isObject = (value) =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
+        "background-color": [/^#[a-f\d]{3,8}$/i, /^rgba?\([\d.,\s%]+\)$/i],
 
-const owns = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+        "text-align": [/^(left|center|right|justify)$/],
+      },
+    },
+
+    allowedSchemes: ["https", "http", "mailto", "tel"],
+  });
 
 // ==========================================
 // CHECK VISIBLE RICH TEXT
 // ==========================================
 
-function visibleText(html) {
+function visible(html) {
   return sanitizeHtml(html, {
     allowedTags: [],
     allowedAttributes: {},
   })
-    .replace(/&(?:nbsp|#0*160|#x0*a0);/gi, " ")
+    .replace(/&(?:nbsp|#160|#xA0);/gi, " ")
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(
-      /&(?:ZeroWidthSpace|#(?:8203|8204|8205|65279)|#x(?:200b|200c|200d|feff));/gi,
-      "",
-    )
     .trim();
 }
 
@@ -115,28 +50,24 @@ function visibleText(html) {
 // VALIDATE URLS
 // ==========================================
 
-function isValidLink(value, image = false) {
-  if (!value) return true;
+function validLink(link, isImage = false) {
+  if (!link) return true;
 
-  // Internal links such as /appointment
-  if (value.startsWith("/") && !value.startsWith("//")) {
-    return !/[\\\s]/.test(value);
+  if (link.startsWith("/") && !link.startsWith("//") && !/[\\\s]/.test(link)) {
+    return true;
   }
 
-  // Page anchors such as #services
-  if (!image && /^#[a-z\d_-]+$/i.test(value)) {
+  if (!isImage && /^#[a-z\d_-]+$/i.test(link)) {
     return true;
   }
 
   try {
-    const url = new URL(value);
-
-    const allowedProtocol = image
-      ? url.protocol === "https:"
-      : ["http:", "https:"].includes(url.protocol);
+    const url = new URL(link);
 
     return (
-      allowedProtocol && Boolean(url.hostname) && !url.username && !url.password
+      (isImage
+        ? url.protocol === "https:"
+        : ["http:", "https:"].includes(url.protocol)) && Boolean(url.hostname)
     );
   } catch {
     return false;
@@ -144,246 +75,171 @@ function isValidLink(value, image = false) {
 }
 
 // ==========================================
-// VALIDATE CLOUDINARY PUBLIC ID
+// VALIDATE AND CLEAN FIELDS
 // ==========================================
 
-function isValidPublicId(value) {
-  return (
-    !value ||
-    (value.length <= MAX_PUBLIC_ID_LENGTH &&
-      /^[a-z\d_./-]+$/i.test(value) &&
-      !value.split("/").includes(".."))
-  );
-}
-
-// ==========================================
-// VALIDATE REAL DATES
-// ==========================================
-
-function isValidDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (year < 1000 || year > 9999) {
-    return false;
-  }
-
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-// ==========================================
-// VALIDATE INDIVIDUAL SECTION FIELDS
-// ==========================================
-
-function cleanFields(fields, incoming, path, errors, previous = {}) {
-  const source = isObject(incoming) ? incoming : {};
-
-  const old = isObject(previous) ? previous : {};
-
+function cleanFields(fields, input, location, errors) {
   const result = {};
 
+  const source =
+    input && typeof input === "object" && !Array.isArray(input) ? input : {};
+
   for (const field of fields) {
-    const key = field.key;
+    const value = source[field.key];
 
-    const errorKey = `${path}.${key}`;
-
-    const value = source[key];
+    const key = `${location}.${field.key}`;
 
     // ======================================
-    // 1. RICH TEXT
+    // MULTILINGUAL RICH TEXT
     // ======================================
 
     if (field.type === "rich") {
-      if (value != null && !isObject(value)) {
-        errors[errorKey] = `${field.label} must be a translation object.`;
+      if (
+        value != null &&
+        (typeof value !== "object" || Array.isArray(value))
+      ) {
+        errors[key] = `${field.label} must contain language translations.`;
 
         continue;
       }
 
-      // English content
-      const enRaw = value?.en ?? "";
+      const translations = {};
 
-      // Preserve existing Dari when
-      // a request does not include fa.
-      const faRaw =
-        isObject(value) && owns(value, "fa") ? value.fa : (old[key]?.fa ?? "");
+      for (const [code, raw] of Object.entries(value || {})) {
+        // Accept dynamic language codes.
+        // Do not remove newly added languages.
 
-      if (typeof enRaw !== "string" || typeof faRaw !== "string") {
-        errors[errorKey] = `${field.label} translations must be text.`;
+        if (
+          !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(code) ||
+          typeof raw !== "string"
+        ) {
+          errors[key] = `${field.label} has an invalid language entry.`;
 
-        continue;
+          continue;
+        }
+
+        if (raw.length > MAX_RICH_LENGTH) {
+          errors[key] = `${field.label} is too long in ${code}.`;
+
+          continue;
+        }
+
+        translations[code.toLowerCase()] = cleanHtml(raw);
       }
 
-      // Check maximum content length.
-      if (enRaw.length > MAX_RICH_LENGTH || faRaw.length > MAX_RICH_LENGTH) {
-        errors[errorKey] = `${field.label} is too long.`;
+      // English is required only when
+      // the rich text field is required.
+      // Other languages are optional.
 
-        continue;
+      if (field.required && !visible(translations.en || "")) {
+        errors[key] = `${field.label} is required in English.`;
       }
 
-      // Remove unsafe HTML.
-      const en = sanitizeHtml(enRaw, HTML_OPTIONS);
-
-      const fa = sanitizeHtml(faRaw, HTML_OPTIONS);
-
-      // Only required English text
-      // must contain visible content.
-      if (field.required && !visibleText(en)) {
-        errors[errorKey] = `${field.label} is required in English.`;
-      }
-
-      result[key] = {
-        en,
-        fa,
-      };
+      result[field.key] = translations;
 
       continue;
     }
 
     // ======================================
-    // 2. IMAGE FIELDS
+    // COMMON IMAGE FOR ALL LANGUAGES
     // ======================================
 
     if (field.type === "image") {
-      const publicIdKey = `${key}PublicId`;
+      const url = typeof value === "string" ? value.trim() : "";
 
-      const idRaw = source[publicIdKey] ?? "";
+      const idValue = source[`${field.key}PublicId`];
+
+      const id = typeof idValue === "string" ? idValue.trim() : "";
+
+      if (url.length > 2000 || !validLink(url, true)) {
+        errors[key] =
+          `${field.label} must be a valid HTTPS image URL or internal path.`;
+      }
 
       if (
-        (value != null && typeof value !== "string") ||
-        typeof idRaw !== "string"
+        id.length > 250 ||
+        (id && (!/^[a-z\d_./-]+$/i.test(id) || id.split("/").includes("..")))
       ) {
-        errors[errorKey] =
-          `${field.label} must contain an image URL and public ID.`;
-
-        continue;
+        errors[key] = `${field.label} has an invalid public ID.`;
       }
 
-      const url = (value || "").trim();
+      // Just one image URL and public ID.
+      // No en/fa/ps image translations.
 
-      const id = idRaw.trim();
+      result[field.key] = url;
 
-      if (field.required && !url) {
-        errors[errorKey] = `${field.label} is required.`;
-      } else if (url.length > MAX_IMAGE_URL_LENGTH || !isValidLink(url, true)) {
-        errors[errorKey] =
-          `${field.label} needs a valid HTTPS URL or internal path.`;
-      } else if (!isValidPublicId(id)) {
-        errors[errorKey] =
-          `${field.label} has an invalid Cloudinary public ID.`;
-      } else if (!url && id) {
-        errors[errorKey] = `${field.label} has a public ID but no image URL.`;
-      }
-
-      result[key] = url;
-
-      result[publicIdKey] = url ? id : "";
+      result[`${field.key}PublicId`] = url ? id : "";
 
       continue;
     }
 
     // ======================================
-    // 3. NORMAL TEXT FIELDS
+    // COMMON TEXT, LINKS, NUMBERS, DATES
     // ======================================
 
     if (value != null && typeof value !== "string") {
-      errors[errorKey] = `${field.label} must be text.`;
+      errors[key] = `${field.label} must be a string.`;
 
       continue;
     }
 
-    const input = (value || "").trim();
+    const v = (value || "").trim();
 
-    // Required text
-    if (field.required && !input) {
-      errors[errorKey] = `${field.label} is required.`;
+    if (v.length > 2000) {
+      errors[key] = `${field.label} is too long.`;
     }
 
-    // Maximum length
-    else if (input.length > MAX_TEXT_LENGTH) {
-      errors[errorKey] = `${field.label} is too long.`;
-    }
-
-    // URL validation
-    else if (
-      (field.type === "url" ||
-        ["link", "buttonLink", "appointmentLink", "videoLink"].includes(key)) &&
-      !isValidLink(input)
+    // Common URLs for every language.
+    if (
+      ["buttonLink", "appointmentLink", "videoLink", "link"].includes(
+        field.key,
+      ) &&
+      !validLink(v)
     ) {
-      errors[errorKey] = `${field.label} must be a valid link.`;
+      errors[key] = `${field.label} must be a valid URL or internal link.`;
     }
 
-    // Email validation
-    else if (
-      field.type === "email" &&
-      input &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)
-    ) {
-      errors[errorKey] = `${field.label} must be a valid email address.`;
+    // Validate dates.
+    if (field.type === "date" && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      errors[key] = `${field.label} requires YYYY-MM-DD.`;
     }
 
-    // Phone number validation
-    else if (
-      field.type === "tel" &&
-      input &&
-      !/^\+?[0-9()\s.-]{7,30}$/.test(input)
-    ) {
-      errors[errorKey] = `${field.label} must be a valid phone number.`;
-    }
-
-    // Date validation
-    else if (field.type === "date" && input && !isValidDate(input)) {
-      errors[errorKey] =
-        `${field.label} must be a real date in YYYY-MM-DD format.`;
-    }
-
-    // Number validation
-    else if (
+    // Validate numbers.
+    if (
       field.type === "number" &&
-      input &&
-      (!Number.isFinite(Number(input)) ||
-        (key === "rating" && (Number(input) < 1 || Number(input) > 5)))
+      v &&
+      (!Number.isFinite(Number(v)) || Number(v) < 1 || Number(v) > 5)
     ) {
-      errors[errorKey] =
-        key === "rating"
-          ? `${field.label} must be between 1 and 5.`
-          : `${field.label} must be a valid number.`;
+      errors[key] = `${field.label} must be between 1 and 5.`;
     }
 
-    result[key] = input;
+    result[field.key] = v;
   }
 
   return result;
 }
 
 // ==========================================
-// MAIN SECTION VALIDATION FUNCTION
+// MAIN SECTION VALIDATOR
 // ==========================================
 
-export function validateSectionDraft(config, payload, previous = null) {
+export function validateSectionDraft(config, payload) {
   const errors = {};
 
-  // Validate section configuration
-  if (!config || !Array.isArray(config.fields)) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return {
       data: null,
       errors: {
-        form: "Invalid section configuration.",
+        form: "Invalid request body.",
       },
     };
   }
 
-  // Validate request body
-  if (!isObject(payload) || !isObject(payload.content)) {
+  if (
+    payload.content == null ||
+    typeof payload.content !== "object" ||
+    Array.isArray(payload.content)
+  ) {
     return {
       data: null,
       errors: {
@@ -392,7 +248,6 @@ export function validateSectionDraft(config, payload, previous = null) {
     };
   }
 
-  // Validate card array
   if (payload.cards != null && !Array.isArray(payload.cards)) {
     return {
       data: null,
@@ -402,84 +257,50 @@ export function validateSectionDraft(config, payload, previous = null) {
     };
   }
 
-  const incomingCards = payload.cards || [];
+  const cardsInput = payload.cards || [];
 
-  // Maximum 50 cards
-  if (incomingCards.length > MAX_CARDS) {
-    errors.cards = `Maximum ${MAX_CARDS} cards are allowed.`;
+  if (cardsInput.length > MAX_CARDS) {
+    errors.cards = `Maximum ${MAX_CARDS} cards allowed.`;
   }
 
-  // Sections without cards cannot
-  // accept repeatable items.
-  if (!config.cardFields && incomingCards.length) {
+  if (!config.cardFields && cardsInput.length) {
     errors.cards = "This section does not support cards.";
   }
 
-  // ========================================
-  // VALIDATE MAIN CONTENT
-  // ========================================
-
+  // Validate main section content.
   const content = cleanFields(
     config.fields,
     payload.content,
     "content",
     errors,
-    previous?.content,
   );
 
-  // ========================================
-  // FIND EXISTING CARDS
-  // ========================================
+  // Validate section cards.
+  const seenIds = new Set();
 
-  const oldCards = new Map(
-    (Array.isArray(previous?.cards) ? previous.cards : [])
-      .filter((card) => isObject(card) && typeof card.id === "string")
-      .map((card) => [card.id, card]),
+  const cards = (config.cardFields ? cardsInput.slice(0, MAX_CARDS) : []).map(
+    (card, i) => {
+      const id = card?.id;
+
+      if (
+        typeof id !== "string" ||
+        !/^[a-z0-9_-]{1,80}$/i.test(id) ||
+        seenIds.has(id)
+      ) {
+        errors[`cards.${i}.id`] = "Each card must have a unique valid ID.";
+      }
+
+      if (typeof id === "string") {
+        seenIds.add(id);
+      }
+
+      return {
+        id,
+
+        ...cleanFields(config.cardFields, card, `cards.${i}`, errors),
+      };
+    },
   );
-
-  // ========================================
-  // VALIDATE ALL CARDS
-  // ========================================
-
-  const seen = new Set();
-
-  const cards = config.cardFields
-    ? incomingCards.slice(0, MAX_CARDS).map((card, index) => {
-        const validObject = isObject(card);
-
-        const id = validObject ? card.id : undefined;
-
-        const idIsValid =
-          typeof id === "string" && /^[a-z\d_-]{1,100}$/i.test(id);
-
-        // Check unique valid IDs
-        if (!idIsValid || seen.has(id)) {
-          errors[`cards.${index}.id`] = "Each card needs a unique valid ID.";
-        }
-
-        if (idIsValid) {
-          seen.add(id);
-        }
-
-        // Validate every card field
-        const fields = cleanFields(
-          config.cardFields,
-          card,
-          idIsValid ? `card.${id}` : `cards.${index}`,
-          errors,
-          oldCards.get(id),
-        );
-
-        return {
-          id,
-          ...fields,
-        };
-      })
-    : [];
-
-  // ========================================
-  // RETURN VALIDATED DATA
-  // ========================================
 
   return {
     data: Object.keys(errors).length
@@ -494,16 +315,13 @@ export function validateSectionDraft(config, payload, previous = null) {
 }
 
 // ==========================================
-// COLLECT CLOUDINARY IMAGE PUBLIC IDs
+// COLLECT SHARED CLOUDINARY IMAGE IDS
 // ==========================================
 
-// This only collects IDs.
-// It DOES NOT delete Cloudinary images.
-
 export function collectImageIds(config, data) {
-  const ids = new Set();
+  const all = new Set();
 
-  function add(fields, values) {
+  const add = (fields, values) => {
     for (const field of fields || []) {
       if (field.type !== "image") {
         continue;
@@ -512,18 +330,18 @@ export function collectImageIds(config, data) {
       const id = values?.[`${field.key}PublicId`];
 
       if (typeof id === "string" && id) {
-        ids.add(id);
+        all.add(id);
       }
     }
-  }
+  };
 
-  // Main section images
+  // Main section images.
   add(config.fields, data?.content);
 
-  // Repeatable card images
+  // Card images.
   for (const card of data?.cards || []) {
     add(config.cardFields, card);
   }
 
-  return ids;
+  return all;
 }

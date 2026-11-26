@@ -1,6 +1,6 @@
 import { requireEditPermission } from "@/Lib/AdminPermission/adminPermissions";
 import connectMongo from "@/Lib/mongoDB";
-import NavMenu from "@/Models/NavBar/NavBar";
+import NavMenu from "@/Models/KlinikoNavbar/KlinikoNavbar";
 import Page from "@/Models/Pages/Page";
 import { NextResponse } from "next/server";
 

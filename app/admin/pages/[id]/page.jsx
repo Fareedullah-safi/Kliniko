@@ -1,6 +1,6 @@
 "use client";
 
-import AdminLanguageBall from "@/app/Components/Admin/AdminLanguageBall";
+import AdminLanguageBall from "@/app/Components/Admin/KlinikoLanguageBall";
 import Spinner from "@/app/Components/Admin/Spinner";
 import { BLOCKS_LIST, BLOCK_REGISTRY } from "@/Lib/PageBuilder/blocks";
 import axios from "axios";

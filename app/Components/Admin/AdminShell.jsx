@@ -15,6 +15,7 @@ import {
   HeartHandshake,
   HeartPulse,
   Images,
+  Languages,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -22,6 +23,7 @@ import {
   Moon,
   Newspaper,
   PanelTop,
+  RefreshCw,
   Search,
   Settings,
   ShieldCheck,
@@ -112,7 +114,7 @@ const NAVIGATION = [
     items: [
       {
         title: "Navbar",
-        href: "/admin/kliniko/navbar",
+        href: "/admin/navbar",
         icon: PanelTop,
       },
       {
@@ -124,6 +126,21 @@ const NAVIGATION = [
         title: "Website Pages",
         href: "/admin/pages",
         icon: FileText,
+      },
+    ],
+  },
+  {
+    title: "Languages Settings",
+    items: [
+      {
+        title: "Languages",
+        href: "/admin/languages",
+        icon: Languages,
+      },
+      {
+        title: "Language Cleanup",
+        href: "/admin/language-sync",
+        icon: RefreshCw,
       },
     ],
   },

@@ -1,3 +1,4 @@
+import { KlinikoLanguageProvider } from "@/app/Components/Admin/Kliniko/KlinikoLanguageProvider";
 import FrontEndLayout from "@/app/Components/HelperHooks/FrontEndLayout";
 import WowAnimation from "@/app/Components/WowAnimation";
 import "@/app/globals.css";
@@ -53,7 +54,9 @@ export default function RootLayout({ children }) {
 
         <WowAnimation />
 
-        <FrontEndLayout>{children}</FrontEndLayout>
+        <KlinikoLanguageProvider>
+          <FrontEndLayout>{children}</FrontEndLayout>
+        </KlinikoLanguageProvider>
 
         <Toaster
           position="top-right"

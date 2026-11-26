@@ -1,6 +1,6 @@
 "use client";
 
-import AdminLanguageBall from "@/app/Components/Admin/AdminLanguageBall";
+import AdminLanguageBall from "@/app/Components/Admin/KlinikoLanguageBall";
 import Spinner from "@/app/Components/Admin/Spinner";
 import axios from "axios";
 import {
