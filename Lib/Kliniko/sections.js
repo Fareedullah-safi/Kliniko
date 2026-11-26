@@ -186,15 +186,43 @@ export const SECTIONS = {
     cardName: "Doctor",
 
     cardFields: [
+      // Homepage card
       rich("name", "Doctor Name"),
       rich("specialty", "Doctor Specialty"),
-
       image("image", "Doctor Photo"),
+      text("link", "Custom Profile Link (optional)"),
 
-      text("link", "Profile Link"),
+      // Profile sidebar
+      text("phone", "Public Office Phone"),
+      text("email", "Public Office Email"),
+      rich("experience", "Experience", false),
+      rich("availability", "Availability / Office Hours", false),
+
+      // Profile content
+      rich("summary", "Professional Summary", false),
+      rich("specializations", "Specializations Description", false),
+      rich("specializationList", "Specializations List", false),
+
+      // Four optional skill bars, like your screenshot
+      rich("skill1Name", "Skill 1 Name", false),
+      text("skill1Percent", "Skill 1 Percentage (0–100)"),
+
+      rich("skill2Name", "Skill 2 Name", false),
+      text("skill2Percent", "Skill 2 Percentage (0–100)"),
+
+      rich("skill3Name", "Skill 3 Name", false),
+      text("skill3Percent", "Skill 3 Percentage (0–100)"),
+
+      rich("skill4Name", "Skill 4 Name", false),
+      text("skill4Percent", "Skill 4 Percentage (0–100)"),
+
+      // Public professional profiles
+      text("facebook", "Facebook URL"),
+      text("linkedin", "LinkedIn URL"),
+      text("instagram", "Instagram URL"),
+      text("website", "Website URL"),
     ],
   },
-
   // ==========================================
   // 6. CASE STUDIES
   // ==========================================

@@ -4,7 +4,7 @@ import Spinner from "@/app/Components/Admin/Spinner";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const API = "/api/kliniko-appointments";
+const API = "/api/admin/kliniko-appointments";
 
 const fields = [
   ["name", "Patient name"],
