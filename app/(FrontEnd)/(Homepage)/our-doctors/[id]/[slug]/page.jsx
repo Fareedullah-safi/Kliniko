@@ -21,7 +21,7 @@ import {
 } from "@/Lib/Kliniko/doctorProfile";
 import { getKlinikoContent } from "@/Lib/Kliniko/getKlinikoContent";
 
-import KlinikoAppointment from "../../../Home/KlinikoAppointment";
+import KlinikoAppointment from "../../../(Homepage)/Home/KlinikoAppointment";
 import { DoctorReveal, DoctorSkillBar } from "../../DoctorMotion";
 import DoctorSocials from "../../DoctorSocials";
 

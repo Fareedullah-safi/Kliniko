@@ -1,5 +1,4 @@
 import { KlinikoLanguageProvider } from "@/app/Components/Admin/Kliniko/KlinikoLanguageProvider";
-import FrontEndLayout from "@/app/Components/HelperHooks/FrontEndLayout";
 import WowAnimation from "@/app/Components/WowAnimation";
 import "@/app/globals.css";
 import { Mona_Sans, Noto_Sans_Arabic } from "next/font/google";
@@ -54,9 +53,7 @@ export default function RootLayout({ children }) {
 
         <WowAnimation />
 
-        <KlinikoLanguageProvider>
-          <FrontEndLayout>{children}</FrontEndLayout>
-        </KlinikoLanguageProvider>
+        <KlinikoLanguageProvider>{children}</KlinikoLanguageProvider>
 
         <Toaster
           position="top-right"

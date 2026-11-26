@@ -1,5 +1,7 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 
+import KlinikoLoader from "@/app/Components/Kliniko/KlinikoLoader";
 import {
   doctorHref,
   doctorSocialLinks,
@@ -17,8 +19,17 @@ import KlinikoServices from "./Home/KlinikoServices";
 import KlinikoTestimonials from "./Home/KlinikoTestimonials";
 import KlinikoWhyChoose from "./Home/KlinikoWhyChoose";
 
+const LOADER_DURATION = 3000;
+
 async function HomeContent() {
-  const cms = await getKlinikoContent();
+  await connection();
+
+  // Load the CMS and start the timer together.
+  // Show the homepage after both are ready.
+  const [cms] = await Promise.all([
+    getKlinikoContent(),
+    new Promise((resolve) => setTimeout(resolve, LOADER_DURATION)),
+  ]);
 
   const savedDoctors = (cms.doctors?.cards ?? []).filter(
     (card) => card?.id && doctorText(card.name),
@@ -82,11 +93,7 @@ async function HomeContent() {
 export default function Page() {
   return (
     <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center">
-          <p role="status">Loading Kliniko...</p>
-        </main>
-      }
+      fallback={<KlinikoLoader mode="page" label="Loading homepage…" />}
     >
       <HomeContent />
     </Suspense>
