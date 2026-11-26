@@ -11,80 +11,32 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import RouteBanner from "@/app/Components/Kliniko/RouteBanner";
 import {
   doctorHref,
+  doctorSkills,
   doctorSlug,
+  doctorSocialLinks,
   doctorText,
 } from "@/Lib/Kliniko/doctorProfile";
 import { getKlinikoContent } from "@/Lib/Kliniko/getKlinikoContent";
 
 import KlinikoAppointment from "../../../Home/KlinikoAppointment";
 import { DoctorReveal, DoctorSkillBar } from "../../DoctorMotion";
+import DoctorSocials from "../../DoctorSocials";
 
-function getSkills(doctor) {
-  const skills = [];
-
-  for (let number = 1; number <= 4; number++) {
-    const label = doctorText(doctor[`skill${number}Name`]);
-    const raw = String(doctor[`skill${number}Percent`] ?? "").trim();
-
-    if (!label || !raw) continue;
-
-    const percent = Number(raw.replace(/%$/, ""));
-
-    if (Number.isFinite(percent) && percent >= 0 && percent <= 100) {
-      skills.push({ number, label, percent });
-    }
-  }
-
-  return skills;
-}
-
-function getSocialLinks(doctor) {
-  const fields = [
-    ["facebook", "Facebook"],
-    ["linkedin", "LinkedIn"],
-    ["instagram", "Instagram"],
-    ["website", "Website"],
-  ];
-
-  const links = [];
-
-  for (const [field, label] of fields) {
-    const value = doctor[field];
-
-    if (typeof value !== "string" || !value.trim()) continue;
-
-    try {
-      const url = new URL(value);
-
-      if (
-        ["http:", "https:"].includes(url.protocol) &&
-        !url.username &&
-        !url.password
-      ) {
-        links.push({ label, href: url.href });
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return links;
-}
-
-function ContactRow({ icon: Icon, label, children }) {
+function InfoRow({ icon: Icon, label, children }) {
   return (
     <div className="flex items-start gap-3.5">
-      <span className="grid size-10 shrink-0 place-items-center rounded-[12px] border border-[#BBDDDC] bg-white text-[#117D90]">
-        <Icon size={18} strokeWidth={2} aria-hidden="true" />
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#BBDDDC] bg-white text-[#117D90]">
+        <Icon size={18} aria-hidden="true" />
       </span>
 
       <div className="min-w-0">
         <dt className="text-xs leading-5 font-semibold text-[#576C75]">
           {label}
         </dt>
-        <dd className="text-[15px] leading-6 font-semibold break-words text-[#142A55] sm:text-base">
+        <dd className="text-[15px] leading-6 font-semibold break-words text-[#142A55]">
           {children}
         </dd>
       </div>
@@ -92,78 +44,72 @@ function ContactRow({ icon: Icon, label, children }) {
   );
 }
 
-function ProfileSidebar({ doctor, name, specialty }) {
+function ProfileSidebar({ doctor, name, href }) {
+  const specialty = doctorText(doctor.specialty);
+  const experience = doctorText(doctor.experience);
   const phone = doctorText(doctor.phone);
   const email = doctorText(doctor.email);
-  const experience = doctorText(doctor.experience);
-  const socials = getSocialLinks(doctor);
-
   const hours = doctorText(doctor.availability)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
 
   return (
-    <aside className="overflow-hidden rounded-[26px] border border-[#B5DCD9] bg-[#F0F7F3] p-3 shadow-[0_10px_30px_rgba(17,67,73,0.06)] sm:p-4">
+    <aside className="rounded-[26px] border border-[#B5DCD9] bg-[#F0F7F3] p-3 shadow-[0_10px_30px_rgba(17,67,73,0.06)] sm:p-4">
       {doctor.image && (
-        <div className="aspect-[6/5] overflow-hidden rounded-[17px] bg-[#DCEBE8]">
-          <img
-            src={doctor.image}
-            alt={name}
-            className="h-full w-full object-cover object-top"
-          />
-        </div>
+        <img
+          src={doctor.image}
+          alt={name}
+          className="aspect-[6/5] w-full rounded-[17px] bg-[#DCEBE8] object-cover object-top"
+        />
       )}
 
       <div className="px-3 pt-6 pb-3 sm:px-4 sm:pb-4">
         {specialty && (
-          <p className="inline-flex rounded-full bg-[#117F91] px-3.5 py-1.5 text-xs font-bold text-white sm:text-sm">
+          <p className="inline-flex rounded-full bg-[#117F91] px-3.5 py-1.5 text-sm font-semibold text-white">
             {specialty}
           </p>
         )}
 
-        <h1 className="mt-4 text-[clamp(1.8rem,2.3vw,2.7rem)] leading-[1.12] font-bold tracking-[-0.04em] text-[#101E50]">
+        <h2 className="mt-4 text-[clamp(1.8rem,2.4vw,2.7rem)] leading-[1.12] font-bold tracking-[-0.04em]">
           {name}
-        </h1>
+        </h2>
 
         {(phone || email || experience) && (
           <dl className="mt-6 space-y-4 border-t border-[#CFE0DC] pt-6">
             {phone && (
-              <ContactRow icon={Phone} label="Phone number">
+              <InfoRow icon={Phone} label="Phone number">
                 <a
                   href={`tel:${phone.replace(/[^\d+]/g, "")}`}
-                  className="underline-offset-4 hover:underline"
+                  className="hover:underline"
                 >
                   {phone}
                 </a>
-              </ContactRow>
+              </InfoRow>
             )}
 
             {email && (
-              <ContactRow icon={Mail} label="Email address">
-                <a
-                  href={`mailto:${email}`}
-                  className="underline-offset-4 hover:underline"
-                >
+              <InfoRow icon={Mail} label="Email address">
+                <a href={`mailto:${email}`} className="hover:underline">
                   {email}
                 </a>
-              </ContactRow>
+              </InfoRow>
             )}
 
             {experience && (
-              <ContactRow icon={BriefcaseBusiness} label="Experience">
+              <InfoRow icon={BriefcaseBusiness} label="Experience">
                 {experience}
-              </ContactRow>
+              </InfoRow>
             )}
           </dl>
         )}
 
         {hours.length > 0 && (
           <section className="mt-6 border-t border-[#CFE0DC] pt-5">
-            <h2 className="flex items-center gap-2 font-bold text-[#142A55]">
+            <h3 className="flex items-center gap-2 font-bold">
               <Clock3 size={17} className="text-[#117F91]" aria-hidden="true" />
               Availability
-            </h2>
+            </h3>
 
             <ul className="mt-2 divide-y divide-[#D7E5E1] text-sm leading-6 text-[#4D616D]">
               {hours.map((line, index) => (
@@ -175,24 +121,17 @@ function ProfileSidebar({ doctor, name, specialty }) {
           </section>
         )}
 
-        {socials.length > 0 && (
-          <nav
-            aria-label={`${name} profile links`}
-            className="mt-5 flex flex-wrap gap-2"
-          >
-            {socials.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-[#BDDAD6] bg-white px-3 py-1.5 text-xs font-semibold text-[#205D6C] transition-colors hover:border-[#148B9E] hover:text-[#142A55] focus-visible:outline-2 focus-visible:outline-[#148B9E]"
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        )}
+        <nav
+          aria-label={`${name} social media`}
+          className="mt-6 border-t border-[#CFE0DC] pt-5"
+        >
+          <DoctorSocials
+            variant="details"
+            name={name}
+            profilePath={href}
+            links={doctorSocialLinks(doctor)}
+          />
+        </nav>
       </div>
     </aside>
   );
@@ -201,20 +140,18 @@ function ProfileSidebar({ doctor, name, specialty }) {
 async function DoctorDetails({ params }) {
   const { id, slug } = await params;
   const cms = await getKlinikoContent();
+  const section = cms.doctors ?? {};
 
-  const doctor = (cms.doctors?.cards ?? []).find((card) => card?.id === id);
-
+  const doctor = (section.cards ?? []).find((card) => card?.id === id);
   if (!doctor) notFound();
 
-  if (slug !== doctorSlug(doctor)) {
-    redirect(doctorHref(doctor));
-  }
+  const href = doctorHref(doctor);
+  if (slug !== doctorSlug(doctor)) redirect(href);
 
   const name = doctorText(doctor.name);
-  const specialty = doctorText(doctor.specialty);
   const summary = doctorText(doctor.summary);
   const specializations = doctorText(doctor.specializations);
-  const skills = getSkills(doctor);
+  const skills = doctorSkills(doctor);
 
   const topics = doctorText(doctor.specializationList)
     .split(/\r?\n/)
@@ -223,22 +160,20 @@ async function DoctorDetails({ params }) {
 
   return (
     <main className="bg-white text-[#101E50]">
+      <RouteBanner image={section.content?.detailsBanner} />
+
       <div className="mx-auto w-full max-w-[1540px] px-6 pt-8 pb-14 sm:px-10 sm:pt-10 sm:pb-20 lg:px-12 2xl:px-6">
         <Link
           href="/our-doctors"
-          className="group mb-7 inline-flex min-h-10 items-center gap-2 rounded-full font-semibold text-[#11798A] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#148B9E]"
+          className="mb-7 inline-flex min-h-10 items-center gap-2 font-semibold text-[#11798A] underline-offset-4 hover:underline"
         >
-          <ArrowLeft
-            size={17}
-            aria-hidden="true"
-            className="motion-safe:transition-transform motion-safe:group-hover:-translate-x-1"
-          />
+          <ArrowLeft size={17} aria-hidden="true" />
           All doctors
         </Link>
 
         <div className="grid items-start gap-9 lg:grid-cols-[minmax(270px,0.82fr)_minmax(0,1.75fr)] xl:gap-14">
           <DoctorReveal>
-            <ProfileSidebar doctor={doctor} name={name} specialty={specialty} />
+            <ProfileSidebar doctor={doctor} name={name} href={href} />
           </DoctorReveal>
 
           <div className="min-w-0 space-y-9 lg:pt-1">
@@ -250,7 +185,7 @@ async function DoctorDetails({ params }) {
                   </h2>
 
                   {summary && (
-                    <p className="mt-5 max-w-[76ch] text-[16px] leading-8 whitespace-pre-line text-[#52616E] sm:text-[17px]">
+                    <p className="mt-5 max-w-[76ch] leading-8 whitespace-pre-line text-[#52616E] sm:text-[17px]">
                       {summary}
                     </p>
                   )}
@@ -259,7 +194,7 @@ async function DoctorDetails({ params }) {
                     <div className="mt-7 grid gap-x-7 gap-y-5 rounded-[20px] border border-[#DCE9E6] bg-[#F8FBFA] p-5 sm:grid-cols-2 sm:p-6">
                       {skills.map((skill) => (
                         <DoctorSkillBar
-                          key={skill.number}
+                          key={skill.id}
                           label={skill.label}
                           percent={skill.percent}
                         />
@@ -278,13 +213,13 @@ async function DoctorDetails({ params }) {
                   </h2>
 
                   {specializations && (
-                    <p className="mt-4 max-w-[76ch] text-[16px] leading-8 whitespace-pre-line text-[#52616E] sm:text-[17px]">
+                    <p className="mt-4 max-w-[76ch] leading-8 whitespace-pre-line text-[#52616E] sm:text-[17px]">
                       {specializations}
                     </p>
                   )}
 
                   {topics.length > 0 && (
-                    <ul className="mt-5 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                    <ul className="mt-5 grid gap-x-6 sm:grid-cols-2">
                       {topics.map((topic, index) => (
                         <li
                           key={`${topic}-${index}`}
@@ -292,9 +227,8 @@ async function DoctorDetails({ params }) {
                         >
                           <BadgeCheck
                             size={18}
-                            strokeWidth={2.2}
                             aria-hidden="true"
-                            className="mt-0.5 shrink-0 text-[#6556CF]"
+                            className="mt-1 shrink-0 text-[#6556CF]"
                           />
                           {topic}
                         </li>
@@ -308,14 +242,10 @@ async function DoctorDetails({ params }) {
             <a
               href="#doctor-appointment"
               aria-label={`Request an appointment with ${name}`}
-              className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[#117F91] px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-[#105E70] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#117F91] sm:text-base"
+              className="inline-flex min-h-12 items-center gap-3 rounded-full bg-[#117F91] px-6 py-3 font-bold text-white transition-colors hover:bg-[#105E70]"
             >
               Request an appointment
-              <ArrowDownRight
-                size={18}
-                aria-hidden="true"
-                className="motion-safe:transition-transform motion-safe:group-hover:translate-y-0.5"
-              />
+              <ArrowDownRight size={18} aria-hidden="true" />
             </a>
           </div>
         </div>
@@ -338,9 +268,9 @@ export default function DoctorDetailsPage({ params }) {
   return (
     <Suspense
       fallback={
-        <main className="grid min-h-[50vh] place-items-center text-[#142A55]">
-          <p role="status">Loading doctor profile...</p>
-        </main>
+        <p role="status" className="p-8 text-center">
+          Loading doctor profile...
+        </p>
       }
     >
       <DoctorDetails params={params} />
