@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 import { useKlinikoLanguage } from "@/app/Components/Admin/Kliniko/KlinikoLanguageProvider";
 
+const DOCTOR_PROFILE_PATH = /^\/(?:our-doctors|doctors)\/[^/]+\/[^/]+$/;
+
 function normalizePath(value) {
   if (typeof value !== "string") return "";
 
@@ -23,15 +25,28 @@ function normalizePath(value) {
   return path.replace(/\/+$/, "") || "/";
 }
 
+function plainText(value) {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/<br\b[^>]*>|<\/(?:p|div|h[1-6]|li)>/gi, " ")
+    .replace(/<\/?[a-z][^>]*>/gi, "")
+    .replace(/&nbsp;|&#160;|\u00a0/gi, " ")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;|&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getLabel(value, language, defaultLanguage) {
-  if (typeof value === "string") return value.trim();
+  if (typeof value === "string") return plainText(value);
 
   for (const code of [language, defaultLanguage, "en"]) {
-    const label = value?.[code];
-
-    if (typeof label === "string" && label.trim()) {
-      return label.trim();
-    }
+    const label = plainText(value?.[code]);
+    if (label) return label;
   }
 
   return "";
@@ -39,22 +54,15 @@ function getLabel(value, language, defaultLanguage) {
 
 function getRouteTitle(path) {
   if (path === "/") return "Home";
+  if (DOCTOR_PROFILE_PATH.test(path)) return "Doctor Details";
 
-  // Your doctor route has two dynamic segments: [id]/[slug].
-  if (/^\/(?:our-doctors|doctors)\/[^/]+\/[^/]+$/.test(path)) {
-    return "Doctor Details";
-  }
-
-  // /our-doctors → Our Doctors
-  // /case-studies → Case Studies
   const lastSegment = path.split("/").filter(Boolean).pop() || "";
-
   let name = lastSegment;
 
   try {
     name = decodeURIComponent(lastSegment);
   } catch {
-    // Keep the original segment if the URL has malformed encoding.
+    // A malformed URL can still display its original segment.
   }
 
   return name
@@ -63,14 +71,11 @@ function getRouteTitle(path) {
     .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 }
 
-export default function RouteBanner({ image, navItems }) {
+export default function RouteBanner({ image, heading, navItems }) {
   const pathname = usePathname();
   const { language, defaultLanguage, direction } = useKlinikoLanguage();
-
   const [loadedItems, setLoadedItems] = useState([]);
 
-  // A layout that already has the navbar cards can pass navItems={cards}
-  // and reuse the same data. Otherwise load the public navbar here.
   useEffect(() => {
     if (Array.isArray(navItems)) return;
 
@@ -88,11 +93,11 @@ export default function RouteBanner({ image, navItems }) {
         const result = await response.json();
         const cards = result?.data?.cards;
 
-        if (!controller.signal.aborted && Array.isArray(cards)) {
+        if (Array.isArray(cards) && !controller.signal.aborted) {
           setLoadedItems(cards);
         }
       } catch {
-        // The route-derived title remains visible if the navbar is unavailable.
+        // The banner can still display the route title.
       }
     }
 
@@ -103,18 +108,25 @@ export default function RouteBanner({ image, navItems }) {
 
   const cards = Array.isArray(navItems) ? navItems : loadedItems;
   const path = normalizePath(pathname);
+  const isDoctorProfile = DOCTOR_PROFILE_PATH.test(path);
 
-  // Your navbar stores both parent and dropdown items in data.cards.
-  // Match the full path so "/our-doctors" does not override "Doctor Details".
-  const currentItem = cards.find(
-    (item) => path && normalizePath(item?.link) === path,
-  );
+  // All doctor profiles share the label from the Doctor Details navbar item.
+  const currentItem = cards.find((item) => {
+    const link = normalizePath(item?.link);
+
+    if (isDoctorProfile) return DOCTOR_PROFILE_PATH.test(link);
+
+    return link !== "" && link === path;
+  });
 
   const homeItem = cards.find((item) => normalizePath(item?.link) === "/");
 
-  const title =
+  const breadcrumbTitle =
     getLabel(currentItem?.label, language, defaultLanguage) ||
     getRouteTitle(path);
+
+  const bannerTitle =
+    getLabel(heading, language, defaultLanguage) || breadcrumbTitle;
 
   const homeLabel =
     getLabel(homeItem?.label, language, defaultLanguage) || "Home";
@@ -124,7 +136,7 @@ export default function RouteBanner({ image, navItems }) {
   return (
     <section
       dir={direction}
-      aria-label={title}
+      aria-label={bannerTitle}
       className="relative isolate overflow-hidden bg-[#142653] text-white"
     >
       {imageUrl && (
@@ -144,10 +156,9 @@ export default function RouteBanner({ image, navItems }) {
 
       <div className="mx-auto flex min-h-[230px] w-full max-w-[1540px] items-center px-6 py-12 sm:min-h-[300px] sm:px-10 sm:py-16 lg:min-h-[390px] lg:px-12 2xl:min-h-[460px] 2xl:px-6">
         <div className="min-w-0">
-          <h1 className="max-w-[20ch] text-[clamp(2.3rem,4.8vw,5.5rem)] leading-[1.08] font-bold tracking-[-0.035em] text-balance break-words">
-            {title}
+          <h1 className="max-w-[20ch] text-[clamp(3rem,calc(2.5rem_+_2vw),4rem)] leading-[1.1] font-bold tracking-[-0.035em] text-balance break-words">
+            {bannerTitle}
           </h1>
-
           <nav aria-label="Breadcrumb" className="mt-4 sm:mt-5">
             <ol className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-base leading-snug font-semibold sm:text-xl lg:text-2xl">
               {path !== "/" && (
@@ -160,13 +171,13 @@ export default function RouteBanner({ image, navItems }) {
                   </Link>
 
                   <span aria-hidden="true" dir="ltr" className="text-white/90">
-                    //
+                    {"//"}
                   </span>
                 </li>
               )}
 
               <li aria-current="page" className="text-[#45C6D6]">
-                {title}
+                {breadcrumbTitle}
               </li>
             </ol>
           </nav>

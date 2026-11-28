@@ -111,7 +111,15 @@ export const SECTIONS = {
     fields: [
       rich("badge", "Section Label", false),
       rich("title", "Section Title"),
-      //   rich("description", "Section Description", false),
+      rich("bannerHeading", "Services Page Banner Heading", false),
+      image("detailsBanner", "Services Page Banner Image"),
+      rich("sidebarTitle", "Service Details Sidebar Heading", true),
+      {
+        ...image("image-services-details", "Service Detail Image"),
+        required: true,
+      },
+      rich("services-details-title", "Service Detail Title", true),
+      rich("services-details-description", "Full Service Description", true),
     ],
 
     cardName: "Service",
@@ -119,12 +127,7 @@ export const SECTIONS = {
     cardFields: [
       rich("title", "Service Title"),
       rich("description", "Service Description"),
-
-      // An icon name is an identifier,
-      // not content to render as HTML.
-
       image("image", "Service Image"),
-
       text("link", "Service Link"),
     ],
   },
@@ -181,6 +184,7 @@ export const SECTIONS = {
     fields: [
       // rich("badge", "Section Label", false),
       rich("title", "Section Title"),
+      rich("bannerHeading", "Doctors Page Banner Heading", false),
       image("detailsBanner", "Doctors Banner Image"),
     ],
 

@@ -4,9 +4,9 @@ import { Suspense } from "react";
 
 import RouteBanner from "@/app/Components/Kliniko/RouteBanner";
 import {
-    doctorHref,
-    doctorSocialLinks,
-    doctorText,
+  doctorHref,
+  doctorSocialLinks,
+  doctorText,
 } from "@/Lib/Kliniko/doctorProfile";
 import { getKlinikoContent } from "@/Lib/Kliniko/getKlinikoContent";
 
@@ -24,7 +24,7 @@ function DoctorCard({ doctor, index }) {
 
   return (
     <DoctorReveal lift delay={(index % 4) * 0.05}>
-      <article className="group/card relative flex h-full flex-col rounded-[22px] border border-[#D5E5E1] bg-[#F0F7F3] p-2.5 text-[#101E50] shadow-sm transition-[background-color,border-color,box-shadow] duration-300 hover:border-[#142650] hover:bg-[#101F4D] hover:shadow-xl focus-within:border-[#142650] focus-within:bg-[#101F4D]">
+      <article className="group/card relative flex h-full flex-col rounded-[22px] border border-[#D5E5E1] bg-[#F0F7F3] p-2.5 text-[#101E50] shadow-sm transition-[background-color,border-color,box-shadow] duration-300 focus-within:border-[#142650] focus-within:bg-[#101F4D] hover:border-[#142650] hover:bg-[#101F4D] hover:shadow-xl">
         <Link
           href={href}
           aria-label={`View ${name}'s profile`}
@@ -51,14 +51,14 @@ function DoctorCard({ doctor, index }) {
             <h3 className="text-[22px] leading-tight font-bold tracking-[-0.03em] sm:text-2xl">
               <Link
                 href={href}
-                className="decoration-[#37BCCB] decoration-2 underline-offset-4 transition-colors hover:underline group-hover/card:text-white group-focus-within/card:text-white"
+                className="decoration-[#37BCCB] decoration-2 underline-offset-4 transition-colors group-focus-within/card:text-white group-hover/card:text-white hover:underline"
               >
                 {name}
               </Link>
             </h3>
 
             {specialty && (
-              <p className="mt-1.5 text-sm leading-6 font-medium text-[#546772] group-hover/card:text-[#E0EEF1] group-focus-within/card:text-[#E0EEF1]">
+              <p className="mt-1.5 text-sm leading-6 font-medium text-[#546772] group-focus-within/card:text-[#E0EEF1] group-hover/card:text-[#E0EEF1]">
                 {specialty}
               </p>
             )}
@@ -89,7 +89,10 @@ async function DoctorsDirectory() {
 
   return (
     <main className="min-h-screen bg-white text-[#101E50]">
-      <RouteBanner image={content.detailsBanner} />
+      <RouteBanner
+        image={content.detailsBanner}
+        heading={content.bannerHeading}
+      />
 
       <section className="mx-auto w-full max-w-[1540px] px-6 py-14 sm:px-10 sm:py-20 lg:px-12 2xl:px-6">
         <DoctorReveal>
@@ -101,7 +104,7 @@ async function DoctorsDirectory() {
               </p>
             )}
 
-            <h2 className="whitespace-pre-line text-[clamp(2.2rem,4vw,4rem)] leading-[1.1] font-bold tracking-[-0.045em] text-balance">
+            <h2 className="text-[clamp(2.2rem,4vw,4rem)] leading-[1.1] font-bold tracking-[-0.045em] text-balance whitespace-pre-line">
               {title}
             </h2>
           </header>
@@ -114,7 +117,9 @@ async function DoctorsDirectory() {
             ))}
           </div>
         ) : (
-          <p className="text-center text-slate-600">No doctor profiles are available yet.</p>
+          <p className="text-center text-slate-600">
+            No doctor profiles are available yet.
+          </p>
         )}
       </section>
     </main>
@@ -123,7 +128,13 @@ async function DoctorsDirectory() {
 
 export default function OurDoctorsPage() {
   return (
-    <Suspense fallback={<p role="status" className="p-8 text-center">Loading doctors...</p>}>
+    <Suspense
+      fallback={
+        <p role="status" className="p-8 text-center">
+          Loading doctors...
+        </p>
+      }
+    >
       <DoctorsDirectory />
     </Suspense>
   );
