@@ -19,7 +19,7 @@ export const metadata = {
   title: "Our Medical Services | Kliniko",
 };
 
-const SECTION_LIMIT = 3;
+const SECTION_LIMIT = 4;
 
 async function ServicesContent() {
   const cms = await getKlinikoContent();
