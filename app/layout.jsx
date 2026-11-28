@@ -30,7 +30,12 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
+    <html
+      lang="en"
+      dir="ltr"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+    >
       <head>
         <link rel="icon" href="/project-logo.jpg?v=1" sizes="any" />
       </head>

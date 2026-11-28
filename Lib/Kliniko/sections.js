@@ -305,7 +305,14 @@ export const SECTIONS = {
     fields: [
       rich("badge", "Section Label", false),
       rich("title", "Section Title"),
-      //   rich("description", "Description", false),
+      image("detailsBanner", "Blog & Blog Details Banner Image"),
+
+      {
+        ...image("image-Blog-details", "Blog Detail Image"),
+        required: true,
+      },
+      rich("Blog-details-title", "Blog Detail Title", true),
+      rich("Blog-details-description", "Full Blog Description", true),
     ],
 
     cardName: "Article",

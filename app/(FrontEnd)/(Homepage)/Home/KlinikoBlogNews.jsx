@@ -422,7 +422,7 @@ function BlogCard({ post, index }) {
             className="mt-[22px] text-[clamp(21px,1.65vw,30px)] leading-[1.34] font-bold tracking-[-0.02em]"
           >
             <Link
-              href={post.href}
+              href={post.href || "/blog"}
               className="rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-[#139db3]"
             >
               <motion.span
@@ -561,7 +561,7 @@ export default function KlinikoBlogNews({ data = {}, cards = [] }) {
         )
       : [];
 
-    const source = saved.length ? saved : DEFAULT_POSTS;
+    const source = (saved.length ? saved : DEFAULT_POSTS).slice(0, 3);
 
     return source.map((card, index) => {
       const fallback = DEFAULT_POSTS[index % DEFAULT_POSTS.length];
