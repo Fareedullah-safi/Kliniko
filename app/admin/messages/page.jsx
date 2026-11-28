@@ -78,7 +78,12 @@ export default function AppointmentsAdmin() {
     }
   }
 
-  if (loading) return <Spinner />;
+  if (loading)
+    return (
+      <div className="flex min-h-96 items-center justify-center bg-[var(--background)]">
+        <Spinner />
+      </div>
+    );
 
   return (
     <main className="mx-auto max-w-6xl space-y-5 text-[var(--foreground)]">
