@@ -123,19 +123,6 @@ export async function GET(request, context) {
         404,
       );
     }
-
-    // 2. Admin authentication.
-    // All admin roles may read the CMS.
-    if (!(await canRead())) {
-      return send(
-        {
-          success: false,
-          message: "Admin login required.",
-        },
-        401,
-      );
-    }
-
     // 3. Connect to database.
     await connectDB();
 

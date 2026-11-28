@@ -708,7 +708,7 @@ export default function KlinikoHero({ data = null }) {
         <Star className="kl-hero-star-float pointer-events-none absolute top-[6%] -right-7 h-20 w-20" />
 
         {/* HERO GRID */}
-        <div className="relative mx-auto grid w-full max-w-[1540px] grid-cols-1 items-center gap-x-4 px-6 sm:px-10 lg:min-h-[600px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] lg:px-12 lg:pt-0 xl:min-h-[690px] 2xl:min-h-[750px] 2xl:px-6">
+        <div className="relative mx-auto grid w-full max-w-[1540px] grid-cols-1 items-center gap-x-4 pt-16 px-6 sm:px-10 lg:min-h-[600px] lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)] lg:px-12 lg:pt-0 xl:min-h-[690px] 2xl:min-h-[750px] 2xl:px-6">
           {/* LEFT CONTENT */}
           <div className="relative z-10 pb-8 lg:py-16">
             {/* DYNAMIC BADGE */}

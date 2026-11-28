@@ -7,14 +7,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
-const API = "/api/navbar";
+const API = "/api/navbar?public=1";
 
 const FALLBACK_ITEMS = [
   { id: "home", label: { en: "Home" }, link: "/" },
   { id: "about", label: { en: "About" }, link: "/about" },
   { id: "services", label: { en: "Services" }, link: "/services" },
   { id: "pages", label: { en: "Pages" }, link: "/pages" },
-  { id: "blog", label: { en: "Blog" }, link: "/blo" },
+  { id: "blog", label: { en: "Blog" }, link: "/blog" },
   { id: "contact", label: { en: "Contact" }, link: "/contact" },
 ];
 
@@ -25,35 +25,75 @@ function getText(value, language, defaultLanguage, fallback = "") {
 
   for (const code of [language, defaultLanguage, "en"]) {
     const text = value?.[code];
-
     if (typeof text === "string" && text.trim()) {
       return text.trim();
     }
   }
 
+  if (value && typeof value === "object") {
+    const first = Object.values(value).find(
+      (v) => typeof v === "string" && v.trim(),
+    );
+    if (first) return first.trim();
+  }
+
   return fallback;
 }
 
-// Your navbar API stores parents and children together in data.cards.
-// A child belongs to the parent whose id matches its parentId.
+function isBlankParent(parentId) {
+  if (!parentId) return true;
+  const s = String(parentId).trim().toLowerCase();
+  return (
+    s === "" ||
+    s === "none" ||
+    s === "null" ||
+    s === "undefined" ||
+    s === "0" ||
+    s === "root"
+  );
+}
+
 function buildMenu(cards) {
-  const items = cards
-    .filter((card) => card?.id != null && String(card.id).trim())
-    .map((card) => ({
+  if (!Array.isArray(cards) || cards.length === 0) return [];
+
+  const items = cards.map((card, index) => {
+    const rawId = card?.id ?? card?._id ?? `nav-item-${index}`;
+    const id = String(rawId).trim();
+    const rawParent = card?.parentId ?? "";
+    const parentId = isBlankParent(rawParent) ? "" : String(rawParent).trim();
+
+    return {
       ...card,
-      id: String(card.id).trim(),
-      parentId: String(card.parentId ?? "").trim(),
-    }));
+      id,
+      parentId,
+      children: [],
+    };
+  });
 
-  const parents = items
-    .filter((item) => !item.parentId)
-    .map((item) => ({ ...item, children: [] }));
-
-  const parentsById = new Map(parents.map((parent) => [parent.id, parent]));
+  const allIds = new Set(items.map((i) => i.id));
+  const parents = [];
+  const children = [];
 
   for (const item of items) {
-    if (item.parentId) {
-      parentsById.get(item.parentId)?.children.push(item);
+    if (
+      !item.parentId ||
+      !allIds.has(item.parentId) ||
+      item.parentId === item.id
+    ) {
+      parents.push(item);
+    } else {
+      children.push(item);
+    }
+  }
+
+  const parentsById = new Map(parents.map((p) => [p.id, p]));
+
+  for (const child of children) {
+    const parent = parentsById.get(child.parentId);
+    if (parent) {
+      parent.children.push(child);
+    } else {
+      parents.push(child);
     }
   }
 
@@ -77,8 +117,6 @@ function routePath(href) {
   return link.replace(/\/+$/, "") || "/";
 }
 
-// Choose one winner across the whole navbar.
-// Equal paths keep the first match. More specific paths win.
 function getActiveMenu(parents, pathname) {
   const current = routePath(pathname);
   let winner = { parentId: null, itemId: null, exact: false };
@@ -300,7 +338,6 @@ function NavbarMenu({
                     : "hover:bg-white/5"
               }`}
             >
-              {/* The label navigates to the parent's saved URL. */}
               <Link
                 href={parent.link || "/"}
                 onClick={navigate}
@@ -320,7 +357,6 @@ function NavbarMenu({
                 {label}
               </Link>
 
-              {/* The visible arrow opens the submenu without navigating. */}
               {hasChildren && (
                 <button
                   data-dropdown-toggle
@@ -443,6 +479,7 @@ export function NavBar() {
         const response = await fetch(API, {
           cache: "no-store",
           signal: controller.signal,
+          headers: { Accept: "application/json" },
         });
 
         if (!response.ok) {
@@ -455,8 +492,6 @@ export function NavBar() {
           throw new Error(result.message || "Invalid navbar response.");
         }
 
-        // Public rendering uses the cards. Version is for admin edits.
-        // Preserve the fallback when the settings document doesn't exist yet.
         if (
           result.version === null &&
           result.data.cards.length === 0 &&
@@ -579,7 +614,11 @@ export function NavBar() {
   }, [mobileOpen, searchOpen]);
 
   const content = navbar?.content || {};
-  const parents = buildMenu(navbar?.cards ?? FALLBACK_ITEMS);
+  const rawCards =
+    Array.isArray(navbar?.cards) && navbar.cards.length > 0
+      ? navbar.cards
+      : FALLBACK_ITEMS;
+  const parents = buildMenu(rawCards);
   const active = getActiveMenu(parents, pathname);
 
   function translated(value, fallback = "") {
@@ -601,7 +640,7 @@ export function NavBar() {
   }
 
   return (
-    <MotionConfig reducedMotion="user">
+  <MotionConfig reducedMotion="never">
       <div className="h-[80px] w-full lg:h-[100px] 2xl:h-[144px]">
         <motion.nav
           ref={navRef}

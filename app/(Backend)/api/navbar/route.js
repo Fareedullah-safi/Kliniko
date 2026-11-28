@@ -1,5 +1,4 @@
 import { requireEditPermission } from "@/Lib/AdminPermission/adminPermissions";
-import { getAdminSession } from "@/Lib/getAllCookies/getAdminSession";
 import { normalizeTranslations } from "@/Lib/Kliniko/translation";
 import connectDB from "@/Lib/mongoDB";
 import KlinikoNavbar from "@/Models/KlinikoNavbar/KlinikoNavbar";
@@ -18,10 +17,15 @@ const TRANSLATED_FIELDS = [
   "appointmentText",
 ];
 
-function reply(data, status = 200) {
+// Allows caching on public loads to eliminate MongoDB latency/delay
+function reply(data, status = 200, isPublic = false) {
   return NextResponse.json(data, {
     status,
-    headers: { "Cache-Control": "no-store" },
+    headers: {
+      "Cache-Control": isPublic
+        ? "public, s-maxage=60, stale-while-revalidate=300"
+        : "no-store",
+    },
   });
 }
 
@@ -116,27 +120,11 @@ function validateCards(cards) {
   return "";
 }
 
-// GET Navbar data for the admin page.
+// GET Navbar data (Public reads load instantly, admin gets fresh data)
 export async function GET(request) {
   try {
-    const session = await getAdminSession();
-
-    if (!session) {
-      return reply({ success: false, message: "Unauthorized." }, 401);
-    }
-
-    const isPermissionCheck =
-      new URL(request.url).searchParams.get("check") === "edit";
-
-    if (isPermissionCheck) {
-      const permission = await requireEditPermission();
-
-      if (!permission.authorized) {
-        return permission.response;
-      }
-
-      return reply({ success: true });
-    }
+    const { searchParams } = new URL(request.url);
+    const isPublic = searchParams.get("public") === "1";
 
     await connectDB();
 
@@ -144,17 +132,20 @@ export async function GET(request) {
       key: NAVBAR_KEY,
     }).lean();
 
-    return reply({
-      success: true,
-      version: navbar?.__v ?? null,
-      data: {
-        content: navbar?.content || {},
-        cards: navbar?.cards || [],
+    return reply(
+      {
+        success: true,
+        version: navbar?.__v ?? null,
+        data: {
+          content: navbar?.content || {},
+          cards: navbar?.cards || [],
+        },
       },
-    });
+      200,
+      isPublic,
+    );
   } catch (error) {
     console.error("Navbar GET:", error);
-
     return reply({ success: false, message: "Could not load Navbar." }, 500);
   }
 }

@@ -7,7 +7,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 const FOOTER_API = "/api/kliniko/footer?public=1";
-const NAVBAR_API = "/api/navbar";
+
+const NAVBAR_API = "/api/navbar?public=1";
 
 // Keep the original molecular background.
 const NODES = [
